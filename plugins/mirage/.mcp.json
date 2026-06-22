@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "mirage": {
+      "type": "http",
+      "url": "https://mirage-platform-production-05ca.up.railway.app/mcp",
+      "note": "Authenticate with OAuth: codex mcp login mirage. Bearer-token env fallback is still available from /connect for clients without MCP OAuth."
+    }
+  }
+}
