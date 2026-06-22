@@ -1,7 +1,7 @@
 {
   "name": "mirage",
   "interface": {
-    "displayName": "Mirage"
+    "displayName": "Sacred"
   },
   "plugins": [
     {

@@ -1,6 +1,6 @@
 ---
 name: script-writer
-description: Use when writing, refining, or restructuring a Mirage script — scene structure, shot beats, cast/environment assignments, pacing, dialogue-bearing beats, or safe text edits after visuals exist.
+description: Use when writing, refining, or restructuring a Sacred script — scene structure, shot beats, cast/environment assignments, pacing, dialogue-bearing beats, or safe text edits after visuals exist.
 ---
 
 # Script Writer

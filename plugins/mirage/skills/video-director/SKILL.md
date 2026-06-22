@@ -1,6 +1,6 @@
 ---
 name: video-director
-description: Use when generating or fixing Mirage shot video — keyframe versus storyboard mode, motion prompts, model behavior, cost checks, audio cues, reference strategy, and repair decisions before spending.
+description: Use when generating or fixing Sacred shot video — keyframe versus storyboard mode, motion prompts, model behavior, cost checks, audio cues, reference strategy, and repair decisions before spending.
 ---
 
 # Video Director
@@ -72,9 +72,9 @@ In storyboard mode, dry-run returns the composed prompt as segments: `format`, `
 
 ## Native Audit Workers
 
-Use a Codex/Claude native subagent or background worker for bounded video-adjacent audits that would bloat the main director context. Name the role in the packet: `Video Payload Auditor` for prompt/ref/audio contradictions, `Continuity Auditor` for cross-shot handoffs, `Candidate Triage Worker` for reroll review, or `Export Packaging Worker` for editor handoff. Mirage does not coordinate these workers; the harness does.
+Use a Codex/Claude native subagent or background worker for bounded video-adjacent audits that would bloat the main director context. Name the role in the packet: `Video Payload Auditor` for prompt/ref/audio contradictions, `Continuity Auditor` for cross-shot handoffs, `Candidate Triage Worker` for reroll review, or `Export Packaging Worker` for editor handoff. Sacred does not coordinate these workers; the harness does.
 
-Use the native-worker packet/receipt contract from `docs/agent-working-method.md`. For video work, the packet should include target shots/assets, the exact question, payload summaries or selected `describe_prompt` output, preserve constraints, and forbidden writes/spend. The worker returns findings, caveats, and suggested next Mirage actions only. The main director remains responsible for dry-runs, paid `start_job` calls, imports, locks, and persisted edits.
+Use the native-worker packet/receipt contract from `docs/agent-working-method.md`. For video work, the packet should include target shots/assets, the exact question, payload summaries or selected `describe_prompt` output, preserve constraints, and forbidden writes/spend. The worker returns findings, caveats, and suggested next Sacred actions only. The main director remains responsible for dry-runs, paid `start_job` calls, imports, locks, and persisted edits.
 
 ## Repair Ladder
 

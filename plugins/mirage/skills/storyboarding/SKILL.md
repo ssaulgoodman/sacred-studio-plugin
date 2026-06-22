@@ -1,13 +1,13 @@
 ---
 name: storyboarding
-description: Use when writing, generating, repairing, or importing Mirage storyboards. Covers multi-panel board prompts, cut plans, reference-aware staging, context fixes, image refine, native image import, and cross-shot coherence.
+description: Use when writing, generating, repairing, or importing Sacred storyboards. Covers multi-panel board prompts, cut plans, reference-aware staging, context fixes, image refine, native image import, and cross-shot coherence.
 ---
 
 # Storyboarding
 
-You write multi-panel storyboard prompts for one Mirage shot. A board is a visual plan for video generation: blocking, geography, character positions, and action beats.
+You write multi-panel storyboard prompts for one Sacred shot. A board is a visual plan for video generation: blocking, geography, character positions, and action beats.
 
-Mirage renders the prompt with locked style, character, and environment references. Use exact project names for those references; Mirage binds those names to the attached images at render time. Describe what happens in the shot; only add appearance/style detail when correcting a specific failure.
+Sacred renders the prompt with locked style, character, and environment references. Use exact project names for those references; Sacred binds those names to the attached images at render time. Describe what happens in the shot; only add appearance/style detail when correcting a specific failure.
 
 ## First Move
 
@@ -21,7 +21,7 @@ Start with `get_shot_context(projectId, shotId)` when available. It shows the sh
 4. **Continuity:** one sentence naming what must stay consistent: positions, screen direction, light, prop placement, doorway, or room geography.
 5. **No text:** end with no captions, numbers, labels, arrows, speech bubbles, subtitles, readable text, logos, or watermarks.
 
-Canonical Mirage storyboards are black-and-white sketch planning sheets, not final production art. Ask for strict black ink/pencil linework on pure white paper, optional gray shading only, and no color or final-render texture. Locked references still matter, but the renderer converts them into sketch guidance for identity, geography, and composition. Final video style comes later from the locked style/cast/environment refs.
+Canonical Sacred storyboards are black-and-white sketch planning sheets, not final production art. Ask for strict black ink/pencil linework on pure white paper, optional gray shading only, and no color or final-render texture. Locked references still matter, but the renderer converts them into sketch guidance for identity, geography, and composition. Final video style comes later from the locked style/cast/environment refs.
 
 Keep the prompt under ~220 words. Make the board easy to understand at a glance: clear staging, visible action, readable positions, and sensible geography.
 
@@ -46,7 +46,7 @@ It can be empty when the board order is enough.
 
 ## HF / Sketch Planning
 
-HF/Supercomputer-style sketch planning is now the canonical Mirage storyboard technique. The default storyboard renderer enforces black-and-white sketch boards, and GPT Image 2 is the default storyboard provider. For music-led projects, use `run_action(list_workflows)` and `run_action(apply_project_workflow, { name: "hf_music_video" })` when the artist wants the full HF music-video workflow: it adds music-section/video recipe defaults on top of the same sketch-board base. If the artist explicitly wants storyboards rendered in the same final style as the video, treat that as a deliberate override, not the default.
+HF/Supercomputer-style sketch planning is now the canonical Sacred storyboard technique. The default storyboard renderer enforces black-and-white sketch boards, and GPT Image 2 is the default storyboard provider. For music-led projects, use `run_action(list_workflows)` and `run_action(apply_project_workflow, { name: "hf_music_video" })` when the artist wants the full HF music-video workflow: it adds music-section/video recipe defaults on top of the same sketch-board base. If the artist explicitly wants storyboards rendered in the same final style as the video, treat that as a deliberate override, not the default.
 
 ## Check The Board
 
@@ -70,11 +70,11 @@ Before locking, check whether the board actually stages the shot:
 
 ## Native Image Workers
 
-Use a Codex/Claude native subagent or background worker named `Image Repair Worker` when a board/keyframe needs precise imagegen repair and the iteration would bloat the main director context. The worker is a harness-native helper, not a Mirage actor.
+Use a Codex/Claude native subagent or background worker named `Image Repair Worker` when a board/keyframe needs precise imagegen repair and the iteration would bloat the main director context. The worker is a harness-native helper, not a Sacred actor.
 
-Use the native-worker packet/receipt contract from `docs/agent-working-method.md`. For storyboard work, the packet should include the target shot, current board/keyframe image, exact repair, preserve constraints, allowed tool (`imagegen` or local inspection), and the intended import path. The worker should not call paid Mirage jobs, lock/unlock, edit project text, or write Supabase state.
+Use the native-worker packet/receipt contract from `docs/agent-working-method.md`. For storyboard work, the packet should include the target shot, current board/keyframe image, exact repair, preserve constraints, allowed tool (`imagegen` or local inspection), and the intended import path. The worker should not call paid Sacred jobs, lock/unlock, edit project text, or write Supabase state.
 
-The receipt must say whether the result is import-ready and include the final image path, prompt used, changes made, caveats, and suggested Mirage action. The main director then shows the result if needed, uploads it with `purpose=storyboard_image` or `purpose=keyframe_image`, and calls `import_storyboard_image` or `import_keyframe_image`. Lock only after artist approval or when the instruction explicitly allowed locking.
+The receipt must say whether the result is import-ready and include the final image path, prompt used, changes made, caveats, and suggested Sacred action. The main director then shows the result if needed, uploads it with `purpose=storyboard_image` or `purpose=keyframe_image`, and calls `import_storyboard_image` or `import_keyframe_image`. Lock only after artist approval or when the instruction explicitly allowed locking.
 
 After any storyboard `start_job`, return the job id and keep working unless the artist explicitly asks you to watch or poll. Studio realtime is the default progress surface; use `get_job` for deliberate checks/watch mode, not habit loops.
 

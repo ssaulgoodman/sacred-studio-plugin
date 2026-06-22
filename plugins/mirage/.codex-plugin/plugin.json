@@ -1,7 +1,7 @@
 {
   "name": "mirage",
   "version": "0.1.9",
-  "description": "Operate Mirage video projects from Codex with project sync, production actions, and craft skills.",
+  "description": "Operate Sacred video projects from Codex with project sync, production actions, and craft skills.",
   "author": {
     "name": "Mothership",
     "email": "saul@companions.gg",
@@ -21,9 +21,9 @@
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
-    "displayName": "Mirage",
+    "displayName": "Sacred",
     "shortDescription": "Agent-operated AI video studio",
-    "longDescription": "Use Mirage from Codex to create and operate AI video projects: concepts, scripts, style, cast and environment references, storyboards, video generation, audio, render prep, local workbench sync, and production issue capture.",
+    "longDescription": "Use Sacred from Codex to create and operate AI video projects: concepts, scripts, style, cast and environment references, storyboards, video generation, audio, render prep, local workbench sync, and production issue capture.",
     "developerName": "Mothership",
     "category": "Video",
     "capabilities": [
@@ -33,9 +33,9 @@
     ],
     "websiteURL": "https://mirage-platform-production-05ca.up.railway.app",
     "defaultPrompt": [
-      "Check Mirage status and open my latest project",
+      "Check Sacred status and open my latest project",
       "Make a Yapper clip from a saved persona",
-      "Start a new Mirage video from this idea"
+      "Start a new Sacred video from this idea"
     ],
     "brandColor": "#101827",
     "composerIcon": "./assets/icon.svg",

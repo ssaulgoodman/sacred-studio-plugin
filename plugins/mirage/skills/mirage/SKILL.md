@@ -1,28 +1,28 @@
 ---
 name: mirage
-description: Use when connecting Codex to Mirage, opening or refreshing a Mirage workspace, choosing a project, syncing project files, uploading media, or explaining the Mirage operating loop.
+description: Use when connecting Codex to Sacred, opening or refreshing a Sacred workspace, choosing a project, syncing project files, uploading media, or explaining the Sacred operating loop.
 ---
 
-# Mirage
+# Sacred
 
-Use Mirage as an agent-operated video studio. Help the artist move one Mirage project through concept, script, style, references, storyboards, video, audio, and render prep.
+Use Sacred as an agent-operated video studio. Help the artist move one Sacred project through concept, script, style, references, storyboards, video, audio, and render prep.
 
 ## Do This Now
 
-1. Confirm Mirage MCP is connected. If auth fails, ask the artist to run `codex mcp login mirage` or reconnect Mirage from `/connect`.
+1. Confirm Sacred MCP is connected under the `mirage` server id. If auth fails, ask the artist to run `codex mcp login mirage` or reconnect Sacred from `/connect`.
 2. Call `mirage_doctor` on first contact or after a deploy. If it says production/plugin state is not coherent, report the verdict plainly and stop before paid work.
-3. Choose or create one project with Mirage tools.
+3. Choose or create one project with Sacred tools.
 4. If the workspace lacks `AGENTS.md` / `CLAUDE.md`, run `mirage init` once. This is token-free and writes stable workspace instructions.
-5. Run `mirage sync <projectId>` to refresh project files if the CLI is logged in. If the CLI is not logged in, use `mint_cli_token` for a one-off sync command, or run `mirage login` with the fallback token from Mirage `/connect`.
+5. Run `mirage sync <projectId>` to refresh project files if the CLI is logged in. If the CLI is not logged in, use `mint_cli_token` for a one-off sync command, or run `mirage login` with the fallback token from Sacred `/connect`.
 6. Read the sync receipt. Trust `generatedAt`, file counts, and receipt status; do not treat the notebook schema version as freshness.
 
 ## Operating Contract
 
-Mirage server/Supabase is canonical truth. Local files are the workbench: useful for reading, editing, diffing, generation traces, and handoff. A local file becomes production only when a Mirage apply action persists it.
+Sacred server/Supabase is canonical truth. Local files are the workbench: useful for reading, editing, diffing, generation traces, and handoff. A local file becomes production only when a Sacred apply action persists it.
 
-Use Mirage MCP for project state, actions, paid jobs, locks, imports, uploads, issue capture, and coherence checks.
+Use Sacred MCP for project state, actions, paid jobs, locks, imports, uploads, issue capture, and coherence checks.
 
-Bytes stay outside MCP. Upload local images/audio through `/api/agent/uploads` with the Mirage bearer token, then pass returned asset IDs into actions.
+Bytes stay outside MCP. Upload local images/audio through `/api/agent/uploads` with the Sacred bearer token, then pass returned asset IDs into actions.
 
 ## Local Workspace Shape
 
@@ -43,11 +43,11 @@ Project files live under `mirage/projects/<projectId>/`:
 - project `config/`
 - `journal.md`
 
-Skills come from the installed Mirage plugin. Action schemas come from live MCP: call `describe_action(actionKey)` for the schema you are about to use.
+Skills come from the installed Sacred plugin. Action schemas come from live MCP: call `describe_action(actionKey)` for the schema you are about to use.
 
 For repeatable production formats, call `list_workflows` and apply the matching recipe with `apply_project_workflow`. The recipe is project data; fill its slots during generation instead of rewriting the wrapper from memory.
 
-For recurring hosts or characters, use personas before asking the artist to re-upload identity. Call `list_personas` when the artist says "use Padma," "run this as Yapper," or "make a <persona> clip about <topic>." If the persona exists, call `create_project_from_persona` with the topic; it seeds character reference, style reference, voice fields, tone notes, and the persona's workflow recipe. Use `save_persona` only when the artist is setting up or updating a reusable identity from owned Mirage assets.
+For recurring hosts or characters, use personas before asking the artist to re-upload identity. Call `list_personas` when the artist says "use Padma," "run this as Yapper," or "make a <persona> clip about <topic>." If the persona exists, call `create_project_from_persona` with the topic; it seeds character reference, style reference, voice fields, tone notes, and the persona's workflow recipe. Use `save_persona` only when the artist is setting up or updating a reusable identity from owned Sacred assets.
 
 When the artist asks to reuse prior taste, characters, references, formats, or old outputs, call `query_artist_memory` for project-level memory and `search_artist_assets` for reusable asset IDs/URLs before asking them to re-explain it.
 
@@ -61,7 +61,7 @@ After references, storyboards, or videos exist, use `apply_text_edits` for wordi
 
 Project sync writes project files only. It should not rewrite skills, action schemas, `AGENTS.md`, or `CLAUDE.md`.
 
-Install/update the Mirage CLI without a live project token. MCP auth is OAuth-first: `codex mcp login mirage` opens Mirage `/connect` and the harness stores the MCP credential. This does not automatically log in the standalone `mirage` CLI.
+Install/update the Sacred CLI (`mirage`) without a live project token. MCP auth is OAuth-first: `codex mcp login mirage` opens Sacred `/connect` and the harness stores the MCP credential. This does not automatically log in the standalone `mirage` CLI.
 
 For file sync, prefer the simplest available path: if the CLI is logged in, run `mirage sync <projectId>`; otherwise call `mint_cli_token` and run the returned short-lived sync command. Use `mirage login` only when the artist deliberately wants persistent CLI sync on that machine.
 
@@ -74,7 +74,7 @@ For local debugging, `mirage status` / `mirage doctor` is the file-level check. 
 For uploaded guides, references, audio, or native imagegen outputs:
 
 1. Make sure `mirage auth status` is authenticated, or use `mint_cli_token` as a one-off fallback.
-2. POST the file to `/api/agent/uploads` with the Mirage bearer token and correct `purpose`.
+2. POST the file to `/api/agent/uploads` with the Sacred bearer token and correct `purpose`.
 3. Use the returned `assetId` in the relevant action.
 
 For native storyboard images, upload with `purpose=storyboard_image`, then call `import_storyboard_image` with the target `shotId`.

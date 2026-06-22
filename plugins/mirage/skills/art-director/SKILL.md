@@ -1,6 +1,6 @@
 ---
 name: art-director
-description: Use when a Mirage project needs its visual style chosen, fixed, or made more consistent across looks, storyboards, and videos. Covers style candidates, locked style refs, guide images, style notes, model phrasing, context overrides, and prompt overrides.
+description: Use when a Sacred project needs its visual style chosen, fixed, or made more consistent across looks, storyboards, and videos. Covers style candidates, locked style refs, guide images, style notes, model phrasing, context overrides, and prompt overrides.
 ---
 
 # Art Director

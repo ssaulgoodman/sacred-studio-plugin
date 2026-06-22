@@ -1,6 +1,6 @@
 ---
 name: sound-director
-description: Use when deciding how uploaded source audio should affect a Mirage project — soundtrack bed, transcription, structure analysis, pacing influence, source meaning, or no analysis.
+description: Use when deciding how uploaded source audio should affect a Sacred project — soundtrack bed, transcription, structure analysis, pacing influence, source meaning, or no analysis.
 ---
 
 # Sound Director

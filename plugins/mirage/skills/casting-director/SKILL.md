@@ -1,6 +1,6 @@
 ---
 name: casting-director
-description: Use when generating, judging, locking, or fixing Mirage character, object, or environment references. Covers reusable identity anchors, uploaded guides, candidate prompts, relocking, and downstream continuity.
+description: Use when generating, judging, locking, or fixing Sacred character, object, or environment references. Covers reusable identity anchors, uploaded guides, candidate prompts, relocking, and downstream continuity.
 ---
 
 # Casting Director
@@ -28,10 +28,10 @@ Fix weak anchors before spending on boards or videos.
 - **Artist image should become the ref immediately** -> upload through `/api/agent/uploads`, then `run_action(lock_reference)` with the returned `assetId`.
 - **Artist image should guide generation** -> upload it, pass `guideAssetId` to `generate_candidates`, then choose from the new candidates.
 - **One exact idea is needed** -> use `promptOverride` for one entity only.
-- **Small soft correction** -> use `note`; Mirage rewrites the saved generation prompt before rendering.
+- **Small soft correction** -> use `note`; Sacred rewrites the saved generation prompt before rendering.
 - **Wrong style/context attached** -> use `contextOverrides` to include/exclude style image, style description, guide image, or style-note sections.
 
-Mirage saves the generated prompt on the cast/environment row and logs the exact render prompt. Use that trail when diagnosing drift.
+Sacred saves the generated prompt on the cast/environment row and logs the exact render prompt. Use that trail when diagnosing drift.
 
 After `start_job(generate_candidates)`, return the job id and keep working unless the artist explicitly asks you to watch or poll. Studio realtime is the default progress surface; use `get_job` for deliberate checks/watch mode, not habit loops.
 

@@ -7,4 +7,4 @@ repo_root="$(cd "$plugin_dir/../.." && pwd)"
 codex plugin marketplace add "$repo_root"
 codex plugin add mirage@mirage
 
-echo "Mirage plugin installed. Start a new Codex thread to load the plugin skills and MCP config."
+echo "Sacred plugin installed. Start a new Codex thread to load the plugin skills and MCP config."

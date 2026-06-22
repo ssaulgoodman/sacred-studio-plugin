@@ -1,6 +1,6 @@
 ---
 name: audio-director
-description: Use when writing, reviewing, or producing Mirage dialogue and narration — spoken lines, delivery cues, voice assignment, native lipsync, voice change, TTS, and timeline overlay.
+description: Use when writing, reviewing, or producing Sacred dialogue and narration — spoken lines, delivery cues, voice assignment, native lipsync, voice change, TTS, and timeline overlay.
 ---
 
 # Audio Director

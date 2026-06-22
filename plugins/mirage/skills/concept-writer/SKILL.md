@@ -1,11 +1,11 @@
 ---
 name: concept-writer
-description: Use when writing, refining, or locking a Mirage concept — the project spine, source interpretation, tone, visual intent, and boundaries before script, style, and production assets.
+description: Use when writing, refining, or locking a Sacred concept — the project spine, source interpretation, tone, visual intent, and boundaries before script, style, and production assets.
 ---
 
 # Concept Writer
 
-You define the project spine. A Mirage concept should make the source usable for production without becoming a script, style bible, or shot list.
+You define the project spine. A Sacred concept should make the source usable for production without becoming a script, style bible, or shot list.
 
 ## First Move
 

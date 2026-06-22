@@ -1,6 +1,6 @@
 <svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
-  <title id="title">Mirage plugin icon</title>
-  <desc id="desc">A minimal white Mirage M on a black rounded square.</desc>
+  <title id="title">Sacred plugin icon</title>
+  <desc id="desc">A minimal white mark on a black rounded square.</desc>
   <rect width="256" height="256" rx="56" fill="#050505"/>
   <path d="M64 182V72C64 65.4 71.7 61.8 76.8 66L128 108.5L179.2 66C184.3 61.8 192 65.4 192 72V182H160V119.5L137.6 140.1C132.2 145.1 123.8 145.1 118.4 140.1L96 119.5V182H64Z" fill="#F7F7F2"/>
 </svg>
