@@ -9,7 +9,7 @@ You decide how source audio should shape the project. This is for uploaded songs
 
 ## First Move
 
-Read `state/audio-analysis.md`, `state/brief.md`, and the project intent. Classify the audio:
+First call `run_action(get_source_analysis)` when the artist asks for saved lyrics, meaning, musical structure, timing, or cut/remix guidance. Read `state/audio-analysis.md`, `state/brief.md`, and the project intent as the local snapshot/fallback. Classify the audio:
 
 - **Soundtrack bed** — plays under the video; no analysis unless requested.
 - **Structural source** — sections, energy, beat drops, or timing should shape scenes.
@@ -20,6 +20,7 @@ Spend only if analysis will change script, pacing, or production choices.
 
 ## Choose The Lever
 
+- **Read saved source intelligence** -> `run_action(get_source_analysis)`; this returns stored lyrics, structure, and meaning without spending or mutating.
 - **Attach only** -> keep `audio_source`; move on.
 - **Canonical words available** -> `run_action(apply_source_lyrics)`; do not spend on transcription just to rediscover known lyrics or source text.
 - **Words matter** -> `start_job(analyze_audio_transcribe)` after approval.

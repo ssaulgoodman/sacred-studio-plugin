@@ -34,6 +34,12 @@ Bad: “Mina realizes the truth and feels devastated.”
 
 Good: “Mina lowers the opened note, stops mid-step, and looks back at the empty doorway.”
 
+## Scene And Framing Grammar
+
+For `scripted_narrative` projects, give scenes slug-style titles: INT or EXT, the environment graph name, and time of day, e.g. “EXT. Harbor Road - dusk”. For `music_led` projects, keep the musical section label as the scene title — Sacred derives music cues from it — and put location/time/light in the scene description instead. Either way, state the scene-level light assumption once — source, quality, weather when it matters — instead of repeating it in every shot.
+
+Name framing only when it carries the beat, in standard shot terms: scale (wide, medium, medium close-up, close-up), angle (eye-level, high, low, over-the-shoulder, POV, overhead), movement (push-in, tracking), support when it matters (locked-off, handheld). “Low angle — she fills the doorway” is direction; “dramatic cinematic framing” is not.
+
 ## Pacing
 
 Use 4-8s for reactions, transitions, and quick action fragments. Use 8-12s for acting beats. Use 12-15s only when the shot visibly evolves. If one shot contains multiple independent beats, split it.

@@ -9,7 +9,7 @@ Video is the expensive end of the pipeline. Your job is to make sure the still i
 
 ## First Move
 
-Start with `get_shot_context(projectId, shotId)` when available. It gives the shot mode, locked board/frame, refs, prompt payload summaries, saved slot defaults, generation eligibility, and next actions without pulling the whole project or full prompt bodies. Then ask:
+Start with `get_shot_context(projectId, shotId)` when available. It gives the shot mode, active board/frame, refs, prompt payload summaries, saved slot defaults, generation eligibility, and next actions without pulling the whole project or full prompt bodies. Then ask:
 
 - Is this **keyframe mode** or **storyboard mode**?
 - Is the board/frame good enough to animate?
@@ -23,7 +23,7 @@ Do not generate video to discover what a bad still already tells you.
 
 **Keyframe mode:** the start frame carries visual state. The motion prompt says what changes over time. Do not restuff character/style/environment design.
 
-**Storyboard mode:** the locked board is primary; style/cast/environment refs are sent with it. If the board is wrong, fix storyboard first.
+**Storyboard mode:** the active board is primary; video generation auto-approves and records the storyboard version it uses. Attached active style/cast/environment references are sent with it, when present. If the board is wrong, fix storyboard first.
 
 If an uploaded/native image should be the start frame, upload with `purpose=keyframe_image`, then call `run_action(import_keyframe_image)`. Use `apply_shot_workflow_modes` only when the shot must force keyframe or storyboard instead of auto.
 
@@ -39,6 +39,8 @@ One short paragraph:
 - include dialogue/sound cues only when they should affect visible action or native audio
 - avoid new visual design
 
+Name camera movement in standard terms when the shot needs one — push-in, pull-back, pan, tilt, dolly, tracking, orbit — and support separately when it matters: locked-off, handheld, Steadicam/gimbal. In keyframe mode prefer one dominant camera move per clip; in storyboard mode follow the approved cut plan — multiple motivated transitions are valid. Light may change only as visible action (“the lamp gutters”, “headlights sweep the wall”); lighting continuity and grade come from the visible board/frame and the attached active references, not from motion-prompt prose.
+
 Good:
 
 > The Boss holds in the doorway for a beat, then steps slowly into the Red Den Room, eyes moving from the empty desk to The Knife Orchid. She remains seated, only her hand tightening on the armrest.
@@ -53,6 +55,7 @@ Weak:
 - **Use an existing/native image as start frame** -> `run_action(import_keyframe_image)`.
 - **Check requirements/cost/prompt composition** -> `run_action(generate_video, { dryRun: true, dryRunSummary: true })` for routine work; omit `dryRunSummary` when you need the exact full prompt body.
 - **Generate** -> `start_job(generate_video)` after approval.
+- **Make a non-destructive Shorts/alternate take** -> dry-run first with `run_action(generate_video, { dryRun: true, dryRunSummary: true, outputMode: "media_library", aspectRatio: "9:16", variantPurpose: "shorts" })`, then after approval call `start_job(generate_video)` with the same `outputMode`, `aspectRatio`, and `variantPurpose`. This saves a media-library take only; it does not replace the active shot video or render timeline.
 - **Previous provider outcome unknown/pending** -> do not retry until the artist acknowledges the risk; pass `acknowledgePreviousChargeRisk: true` only after that approval.
 - **One exact final prompt needed** -> use `promptOverride` on `generate_video`.
 - **One storyboard-video prompt segment is hurting one call** -> use `contextOverrides` on `generate_video` dry-run first, e.g. `{ includeShotBeat: false }` or `{ includeCutPlan: false }`, then generate only after the composition reads clean. If that decision should survive later Studio/agent regenerations, persist it with `apply_shot_prompts({ shots: [{ shotId, videoPromptSlots: { includeShotBeat: false, includeCutPlan: true } }] })`.
@@ -64,11 +67,11 @@ Weak:
 - **Board/frame wrong** -> return to storyboarding/keyframe tools before video.
 - **Same failure twice** -> change model or upstream input, not just the same retry.
 
-In storyboard mode, treat the locked board as a black-and-white sketch plan by default: camera, choreography, staging, geography, screen direction, and beat timing. Final video style comes from locked style/cast/environment refs, not from the board's paper/ink treatment. The shot beat (`shots.direction`) is excluded from storyboard-video prompts by default; rely on the locked storyboard, explicit refs, and cut plan unless the beat contains essential content. For one run, opt it in with `contextOverrides.includeShotBeat=true`; for the shot's future default, persist `videoPromptSlots.includeShotBeat=true` through `apply_shot_prompts` or the Studio payload inspector.
+In storyboard mode, treat the active board as a black-and-white sketch plan by default: camera, choreography, staging, geography, screen direction, and beat timing. Final video style comes from the attached active references, when present, not from the board's paper/ink treatment. The shot beat (`shots.direction`) is excluded from storyboard-video prompts by default; rely on the active storyboard, explicit refs, and cut plan unless the beat contains essential content — opt it in per call with `contextOverrides.includeShotBeat=true`, or persist via `videoPromptSlots`.
 
-For `hf_music_video`, keep the final video prompt full-frame and music-led. When useful, pass `recipeSlots` such as `musicSection`, `beatTiming`, `choreography`, and `audioPolicy` on `generate_video`. The uploaded song remains the authoritative final audio; use source-audio lipsync only when a shot explicitly needs singing or mouth timing.
+For the music-video storyboard workflow, keep the final video full-frame and music-led. The recipe derives its music cue and duration from project state; do not rewrite its wrapper. The uploaded song remains the authoritative final audio; use source-audio lipsync only when a shot explicitly needs singing or mouth timing.
 
-In storyboard mode, dry-run returns the composed prompt as segments: `format`, `animation`, `beat`, `refs`, `cut_plan`, `audio`, and `guardrail`. Use `dryRunSummary:true` first so you see included/excluded slots, refs, params, sources, and edit paths without loading the full body. Pull full text with a normal dry-run or `describe_prompt` only when output quality/debugging requires it. Prefer dropping a bad segment with `contextOverrides` for one call or `videoPromptSlots` for the saved shot default over hand-writing a full `promptOverride`.
+In storyboard mode, dry-run returns the composed prompt as segments: `format`, `animation`, `beat`, `refs`, `cut_plan`, `audio`, and `guardrail`. Prefer dropping a bad segment with `contextOverrides` for one call or `videoPromptSlots` for the saved shot default over hand-writing a full `promptOverride`.
 
 ## Native Audit Workers
 
@@ -80,7 +83,7 @@ Use the native-worker packet/receipt contract from `docs/agent-working-method.md
 
 1. **Motion wording wrong** -> edit motion prompt.
 2. **Board/frame wrong** -> fix storyboard or keyframe.
-3. **Identity/location drift** -> fix locked refs.
+3. **Identity/location drift** -> fix active refs.
 4. **Audio/lipsync issue** -> inspect audio plan and model family.
 5. **Native voice wrong but mouth timing works** -> voice-change the video; for two speakers, pass explicit segment cut ranges.
 6. **Model artifact/physics failure** -> one model switch test.
@@ -94,7 +97,7 @@ After `start_job`, return the job id and keep working unless the artist explicit
 
 ## Avoid
 
-- Video generation before board/frame lock.
+- Video generation before there is a usable board/frame.
 - Long motion prompts that invent new styling.
 - Retrying same model/prompt/refs after the same failure.
 - Video-tuning a bad beat.

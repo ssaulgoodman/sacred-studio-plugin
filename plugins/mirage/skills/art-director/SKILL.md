@@ -36,13 +36,16 @@ Useful style language names visible properties:
 
 - medium: anime key art, editorial photo, watercolor background, claymation still, ink wash, graphic poster
 - form: crisp contour, painterly edges, flat cel shading, visible brushwork, realistic lensing
-- palette/light: contrast, softness, color family, highlight behavior
+- light: hard or soft, high-key or low-key, motivated or practical sources, highlight behavior
+- color/grade: real colorist terms — warm or cool dominance, saturation, contrast, and named looks like film emulation, bleach bypass, teal-and-orange, day-for-night, low-con
 - composition: spacious wides, close acting shots, silhouettes, restrained or dense backgrounds
 - negatives: what the model must avoid
 
 Bad: “cinematic, premium, beautiful, epic.”
 
 Good: “crisp ink contours, matte painted backgrounds, limited warm highlights, restrained shadows, no glossy AI sheen.”
+
+Use industry vocabulary; project flavor — specific locations, fixtures, palette hues — is scene/project data, not style adjectives. Time of day, weather, and per-scene light are scene choices; keep them out of the global style unless the whole project shares them.
 
 ## Diagnose Drift
 

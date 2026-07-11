@@ -1,13 +1,13 @@
 {
   "name": "mirage",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Operate Sacred video projects from Codex with project sync, production actions, and craft skills.",
   "author": {
     "name": "Mothership",
     "email": "saul@companions.gg",
-    "url": "https://mirage-platform-production-05ca.up.railway.app"
+    "url": "https://app.sacredai.studio"
   },
-  "homepage": "https://mirage-platform-production-05ca.up.railway.app",
+  "homepage": "https://app.sacredai.studio",
   "repository": "https://github.com/ssaulgoodman/sacred-studio-plugin",
   "license": "UNLICENSED",
   "keywords": [
@@ -31,7 +31,7 @@
       "Write",
       "Interactive"
     ],
-    "websiteURL": "https://mirage-platform-production-05ca.up.railway.app",
+    "websiteURL": "https://app.sacredai.studio",
     "defaultPrompt": [
       "Check Sacred status and open my latest project",
       "Make a Yapper clip from a saved persona",

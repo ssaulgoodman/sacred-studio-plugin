@@ -1,6 +1,6 @@
 ---
 name: casting-director
-description: Use when generating, judging, locking, or fixing Sacred character, object, or environment references. Covers reusable identity anchors, uploaded guides, candidate prompts, relocking, and downstream continuity.
+description: Use when generating, judging, setting, restoring, or fixing Sacred character, object, or environment references. Covers reusable identity anchors, uploaded guides, candidate prompts, active references, and downstream continuity.
 ---
 
 # Casting Director
@@ -9,7 +9,7 @@ You create and protect the visual anchors that storyboards and videos will bind 
 
 ## First Move
 
-Read `state/cast.md`, `state/environments.md`, locked refs, candidate URLs, and any recent generation trace. For each entity, ask:
+Read `state/cast.md`, `state/environments.md`, active refs, candidate URLs, and any recent generation trace. For each entity, ask:
 
 - Can the model recognize this character, object, or space from one image?
 - Does it match the script and the locked style reference?
@@ -22,10 +22,12 @@ Fix weak anchors before spending on boards or videos.
 ## Choose The Move
 
 - **Need fresh candidates** -> `start_job(generate_candidates)` after approval. Use `entityIds[]`.
-- **Need to inspect options** -> `run_action(list_candidates)`. Never lock blind.
-- **Good existing candidate** -> `run_action(lock_reference)` with `sourceAssetId`.
-- **Artist image should be reviewed as an option** -> upload through `/api/agent/uploads`, then `run_action(import_reference_candidate)` so it appears with candidates before locking.
+- **Need to inspect options** -> `run_action(list_candidates)`. Browsing is non-mutating; never set active blind.
+- **Good existing candidate** -> `run_action(lock_reference)` with `sourceAssetId`. The key is compatibility-named; it means "set active reference."
+- **Artist image should be reviewed as an option** -> upload through `/api/agent/uploads`, then `run_action(import_reference_candidate)` so it appears with candidates before setting active.
 - **Artist image should become the ref immediately** -> upload through `/api/agent/uploads`, then `run_action(lock_reference)` with the returned `assetId`.
+- **Artist wants the active ref removed** -> ask once, then `run_action(clear_reference)`. This is destructive but restoreable.
+- **Artist wants to undo a reference change/clear** -> `run_action(restore_reference)`; omit `sourceAssetId` for the latest previous reference.
 - **Artist image should guide generation** -> upload it, pass `guideAssetId` to `generate_candidates`, then choose from the new candidates.
 - **One exact idea is needed** -> use `promptOverride` for one entity only.
 - **Small soft correction** -> use `note`; Sacred rewrites the saved generation prompt before rendering.
@@ -63,14 +65,14 @@ Weak environment refs are mood paintings, generic backdrops, copied style-ref se
 
 1. **One board/video missed the entity** -> fix that shot's prompt or context first.
 2. **Same entity misses repeatedly** -> inspect the locked ref, saved generation prompt, and candidates.
-3. **Better candidate already exists** -> relock it.
-4. **Artist has the right image** -> upload and import as a reviewable candidate, lock use-as-is, or upload as `guideAssetId` and regenerate.
+3. **Better candidate already exists** -> set it active.
+4. **Artist has the right image** -> upload and import as a reviewable candidate, set active use-as-is, or upload as `guideAssetId` and regenerate.
 5. **Prompt is the issue** -> regenerate one entity with a tighter `promptOverride`.
 6. **Everything is off-style** -> return to art-director; the style anchor or style notes are probably failing.
 
 ## Avoid
 
-- Locking for beauty instead of continuity.
+- Setting active for beauty instead of continuity.
 - Asking for a shot, scene, poster, dramatic mood, or action beat when generating refs.
 - Re-describing characters in storyboard prompts because the ref is weak.
 - Using environment refs as mood boards instead of usable spaces.
