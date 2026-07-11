@@ -1,6 +1,6 @@
 {
   "name": "mirage",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "Operate Sacred video projects from Codex with project sync, production actions, and craft skills.",
   "author": {
     "name": "Mothership",
@@ -22,7 +22,7 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Sacred",
-    "shortDescription": "Agent-operated AI video studio",
+    "shortDescription": "AI-native film studio",
     "longDescription": "Use Sacred from Codex to create and operate AI video projects: concepts, scripts, style, cast and environment references, storyboards, video generation, audio, render prep, local workbench sync, and production issue capture.",
     "developerName": "Mothership",
     "category": "Video",
@@ -37,8 +37,10 @@
       "Make a Yapper clip from a saved persona",
       "Start a new Sacred video from this idea"
     ],
-    "brandColor": "#101827",
+    "brandColor": "#FF3D00",
     "composerIcon": "./assets/icon.svg",
-    "logo": "./assets/logo.svg"
+    "logo": "./assets/logo.svg",
+    "logoDark": "./assets/logo.svg",
+    "screenshots": []
   }
 }
