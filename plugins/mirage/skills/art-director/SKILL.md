@@ -25,8 +25,8 @@ Fix the lowest layer that explains the pattern.
 - **Use uploaded inspiration** -> upload image, pass `guideAssetId` to candidate generation.
 - **Lock an exact style image** -> `apply_style_direction({ style: { sourceAssetId, styleDescription? } })`.
 - **Save reusable taste** -> `apply_project_style_notes` in the right bucket: `image`, `storyboard`, `motion`, `script`, `dialogue`, or `audio`.
-- **One call needs different context** -> use `contextOverrides`.
-- **A full prompt recipe keeps working** -> use `apply_project_prompt_override`; otherwise prefer style notes.
+- **One call needs different context** -> use only that action's documented `contextOverrides`; unsupported keys fail rather than silently doing nothing.
+- **A reusable project recipe instruction keeps working** -> use `apply_project_prompt_override`; it is an additive persistent composer instruction, not an exact final-prompt replacement. Otherwise prefer style notes.
 
 Video generation has slot/ref `contextOverrides` in storyboard mode. If video loses style, dry-run first and verify the `refs` segment plus `composition.images`; fix the board/frame/motion prompt, style anchor, or selected refs before spending again.
 
