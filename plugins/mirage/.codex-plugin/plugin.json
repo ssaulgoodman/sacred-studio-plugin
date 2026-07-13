@@ -1,6 +1,6 @@
 {
   "name": "mirage",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "Operate Sacred video projects from Codex with project sync, production actions, and craft skills.",
   "author": {
     "name": "Mothership",
@@ -33,7 +33,7 @@
     ],
     "websiteURL": "https://app.sacredai.studio",
     "defaultPrompt": [
-      "Check Sacred status and open my latest project",
+      "Open my latest Sacred project",
       "Make a Yapper clip from a saved persona",
       "Start a new Sacred video from this idea"
     ],

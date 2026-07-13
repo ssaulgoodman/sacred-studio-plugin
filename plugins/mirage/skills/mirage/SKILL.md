@@ -9,12 +9,13 @@ Use Sacred as an agent-operated video studio. Help the artist move one Sacred pr
 
 ## Do This Now
 
-1. Confirm Sacred MCP is connected under the `mirage` server id. If auth fails, ask the artist to run `codex mcp login mirage` or reconnect Sacred from `/connect`.
-2. Call `mirage_doctor` on first contact or after a deploy. If it says production/plugin state is not coherent, report the verdict plainly and stop before paid work.
-3. Choose or create one project with Sacred tools.
-4. If the workspace lacks `AGENTS.md` / `CLAUDE.md`, run `mirage init` once. This is token-free and writes stable workspace instructions.
-5. Run `mirage sync <projectId>` to refresh project files if the CLI is logged in. If the CLI is not logged in, use `mint_cli_token` for a one-off sync command, or run `mirage login` with the fallback token from Sacred `/connect`.
-6. Read the sync receipt. Trust `generatedAt`, file counts, and receipt status; do not treat the notebook schema version as freshness.
+Routine use is deliberately short:
+
+1. Confirm Sacred MCP tools are visible under the `mirage` server id. If they are absent, stop. Do not fall back to browser control or local CLI project reads; ask the artist to fully restart the harness, then run `codex mcp login mirage` only if `codex mcp list` says Sacred is not logged in.
+2. Call `open_project` directly with the project ID, the artist's title/query, or `latest: true`. It resolves and opens in one call. Use project/workspace lists only when the request is ambiguous.
+3. Continue from the returned live state. Do not run doctor, package/version inspection, workspace init, or sync before ordinary project work.
+
+Use `mirage_doctor` after install, plugin/server updates, deploys, authentication failures, or a real coherence problem. Initialize and sync the local workbench only when the task needs long editable files, payload traces, generation receipts, or handoff artifacts. Project sync is not part of attachment.
 
 ## Operating Contract
 
@@ -67,7 +68,7 @@ For file sync, prefer the simplest available path: if the CLI is logged in, run 
 
 Use MCP file reads only when the harness has no shell or local file-write capability.
 
-For local debugging, `mirage status` / `mirage doctor` is the file-level check. `mirage_doctor` is the remote coherence check. Use both when onboarding feels stuck.
+For local debugging, `mirage status` / `mirage doctor` is the file-level check. `mirage_doctor` is the remote coherence check. Use them only when onboarding or coherence is actually stuck, not as routine preflight.
 
 ## Media Uploads
 
