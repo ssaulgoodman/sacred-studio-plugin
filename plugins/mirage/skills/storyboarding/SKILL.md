@@ -11,7 +11,20 @@ Sacred renders the prompt with the active style, character, and environment refe
 
 ## First Move
 
-Start with `get_shot_context(projectId, shotId)` when available. It shows the shot direction, assigned cast/environment, active refs, current board state, latest storyboard render payload summary, video payload summary, and exact edit paths without loading full prompt bodies. If no draft exists, write from the shot. If fixing a generated board, read the current board state and the relevant payload summary before guessing; use `run_action(generate_storyboard, { dryRun: true })` to preview the exact next storyboard render payload before spending, and use `describe_prompt({ kind: "storyboard_render" })` only when you need exact text from an already-generated board.
+Start with `get_shot_context(projectId, shotId)` when available. It shows the shot direction, assigned cast/environment, active refs, current board state, latest storyboard render payload summary, video payload summary, and exact edit paths without loading full prompt bodies. If no draft exists, write from the shot. If fixing a generated board, inspect its actual pixels with `review_storyboard` before guessing; use `run_action(generate_storyboard, { dryRun: true })` to preview the exact next storyboard render payload before spending, and use `describe_prompt({ kind: "storyboard_render" })` only when you need exact text from an already-generated board.
+
+## Sequential Scene Loop
+
+Build a spatially coherent scene one shot at a time. Do not batch-write all cut plans from script text.
+
+1. Write the current shot's storyboard prompt with `run_action(apply_storyboard_prompts)`. At this stage, persist the prompt only.
+2. After storyboard spend is approved, generate the board with `start_job(generate_storyboard)`.
+3. When the job completes, call `review_storyboard` and inspect the returned image pixels. Check staging, geography, continuity, action progression, and the shot's ending state.
+4. If the board is wrong, repair the prompt or use a narrow image refine, regenerate, and inspect again. Do not compensate for a bad board in the cut plan.
+5. Once the board is good, write the cut plan from what is actually visible and save it with `run_action(apply_storyboard_cut_plan)`, passing the active storyboard version ID returned by `review_storyboard`.
+6. Move to the next shot. Use the previous board already visible in conversation as continuity context. Set `includePrevious: true` only after a resumed or compacted session when those pixels are no longer in context.
+
+Finish the boards and cut plans for the scene, share the Studio review link, and stop for artist approval before starting any video generation. Independent scenes may be prepared in parallel, but shots that share geography or continuous action should follow this sequence.
 
 ## Prompt Pattern
 
@@ -39,13 +52,11 @@ Write panel framings in standard shot terms. Scale: extreme wide, wide, medium w
 
 ## Cut Plan
 
-The cut plan guides video motion after the board exists. Use the same beats, one line per panel:
+The cut plan is post-board motion direction. Write it only after seeing the rendered board, and describe how the visible panels become a coherent clip. Keep it as detailed as the motion requires; there is no one-line or terseness rule.
 
-`Panel 1 — slow lean into the doorway, breath held`
+Address the relevant panels and include only what helps execution: camera movement or hold, visible subject action, position and contact continuity, performable emotion or gesture, progression between beats, and the intended ending or handoff state. Plain directions such as `cut to wide as she rises`, `track with him crossing the room`, or `hold on the close-up until her hand releases` are useful. No timestamps, lens specifications, or rig jargon unless a model-specific repair truly requires them.
 
-Plain camera moves or holds belong here when they matter: `Panel 2 — cut to wide as she rises`, `Panel 3 — hold on the close-up`. No timestamps, no lens or rig jargon.
-
-It can be empty when the board order is enough.
+The board is the spatial truth. If an action, position, or transition is absent or contradicted in the image, fix the board rather than inventing it in the cut plan. An empty plan is valid only when the artist deliberately chooses board-order-only motion.
 
 ## Sketch Planning
 
@@ -79,7 +90,7 @@ Use the native-worker packet/receipt contract from `docs/agent-working-method.md
 
 The receipt must say whether the result is import-ready and include the final image path, prompt used, changes made, caveats, and suggested Sacred action. The main director then shows the result if needed, uploads it with `purpose=storyboard_image` or `purpose=keyframe_image`, and calls `import_storyboard_image` or `import_keyframe_image`. Video generation will record the active board version it uses.
 
-After any storyboard `start_job`, return the job id and keep working unless the artist explicitly asks you to watch or poll. Studio realtime is the default progress surface; use `get_job` for deliberate checks/watch mode, not habit loops.
+After a storyboard `start_job`, return the job id and avoid busy polling. Studio realtime is the default progress surface. This workflow has a real dependency, however: once completion is visible, use one deliberate `get_job` check if needed, then call `review_storyboard`; do not move to the next continuity-dependent shot before inspecting the board.
 
 Keep `gpt-image-2` as the storyboard provider unless the artist explicitly asks to test another model or GPT Image 2 fails repeatedly with a clear provider-specific issue.
 
