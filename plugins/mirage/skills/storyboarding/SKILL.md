@@ -15,16 +15,18 @@ Start with `get_shot_context(projectId, shotId)` when available. It shows the sh
 
 ## Sequential Scene Loop
 
-Build a spatially coherent scene one shot at a time. Do not batch-write all cut plans from script text.
+Build a spatially coherent scene one shot at a time. Each accepted board creates evidence that did not exist in the script: visible positions, screen direction, contact, eyelines, environment geometry, and the shot's ending state. Use that evidence to author the next shot rather than predicting it in advance.
 
-1. Write the current shot's storyboard prompt with `run_action(apply_storyboard_prompts)`. At this stage, persist the prompt only.
+1. Author and persist only the current shot's storyboard prompt with `run_action(apply_storyboard_prompts)`.
 2. After storyboard spend is approved, generate the board with `start_job(generate_storyboard)`.
 3. When the job completes, call `review_storyboard` and inspect the returned image pixels. Check staging, geography, continuity, action progression, and the shot's ending state.
 4. If the board is wrong, repair the prompt or use a narrow image refine, regenerate, and inspect again. Do not compensate for a bad board in the cut plan.
 5. Once the board is good, write the cut plan from what is actually visible and save it with `run_action(apply_storyboard_cut_plan)`, passing the active storyboard version ID returned by `review_storyboard`.
-6. Move to the next shot. Use the previous board already visible in conversation as continuity context. Set `includePrevious: true` only after a resumed or compacted session when those pixels are no longer in context.
+6. Now author the next shot's prompt from the accepted board's observed ending geography and handoff state. Use the previous board already visible in conversation as continuity context. Set `includePrevious: true` only after a resumed or compacted session when those pixels are no longer in context.
 
 Finish the boards and cut plans for the scene, share the Studio review link, and stop for artist approval before starting any video generation. Independent scenes may be prepared in parallel, but shots that share geography or continuous action should follow this sequence.
+
+Guardrail: for continuity-dependent shots, do not draft or persist later prompts before their preceding boards are accepted. Multi-shot `shots[]` and whole-scene markdown remain appropriate for independent shots, imports, and non-continuity preparation.
 
 ## Prompt Pattern
 
