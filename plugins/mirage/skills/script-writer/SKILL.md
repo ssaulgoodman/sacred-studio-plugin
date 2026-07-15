@@ -52,6 +52,8 @@ After visual work exists, `apply_script` is a broad topology rebuild and can req
 
 Use `add_shot` / `delete_shot` for one-shot structural changes inside an existing scene. They preserve other shots and only stale continuity-dependent neighbors. `delete_shot` preserves paid media by detaching asset rows when forced. Use `apply_script` for fresh scripts, cast/environment changes, scene changes, multi-shot reorders, merges, or re-IDing.
 
+For structured `apply_script` JSON, shots use `direction`, `castIds`, and `environmentId` exactly. Never substitute `beat`, cast names, or environment names. Keep existing cast/environment IDs whenever those entities survive the rewrite; stable IDs preserve active references, saved look prompts, and cast voices. Removed or re-IDed entities intentionally lose that attached state.
+
 ## Push Back
 
 - “Make it more emotional” -> translate emotion into blocking or ask which emotion.
