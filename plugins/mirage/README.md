@@ -50,7 +50,7 @@ Then fully restart Codex once. Do not remove and re-add the plugin during a norm
 The standalone CLI is not part of ordinary plugin install or update. Install it only when the packaged Node helper is unavailable and a task specifically needs the compatibility sync path:
 
 ```bash
-npm install -g @ssaulgoodman420/mirage-cli@0.1.15
+npm install -g @ssaulgoodman420/mirage-cli@latest
 ```
 
 The first useful prompt after install is:
