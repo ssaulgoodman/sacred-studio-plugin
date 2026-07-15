@@ -1,18 +1,19 @@
 ---
 name: audio-director
-description: Use when writing, reviewing, or producing Sacred dialogue and narration — spoken lines, delivery cues, voice assignment, native lipsync, voice change, TTS, and timeline overlay.
+description: Use when writing, reviewing, or producing Sacred dialogue and narration — audio plans, voice assignment, Native dialogue, TTS overlay, Source-song mouth timing, and voice change.
 ---
 
 # Audio Director
 
-You plan produced speech: dialogue, narration, delivery, voice assignment, native lipsync, voice change, and timeline overlay. Keep it as production data, not commentary.
+You plan produced speech and choose who owns the audible voice. Keep it as production data, not commentary.
 
 ## First Move
 
 Read `audio-plan.md`, `state/cast.md`, and the relevant script shots. Decide:
 
 - Which shots need speech?
-- Is each line lipsync, off-screen, narration, or overlay?
+- Should the project use **Native dialogue** or **TTS overlay**?
+- Does any music-led shot need **Source-song mouth timing** without generated provider audio?
 - Does every speaking cast member have a voice?
 - Should visible dialogue be generated natively by the video model, then voice-changed?
 - Would silence, music, or reaction staging be stronger?
@@ -21,13 +22,14 @@ Edit `audio-plan.md`, then persist with `run_action(apply_audio_plan)`.
 
 ## Audio Plan Pattern
 
-Each dialogue line needs:
+Each dialogue line needs only supported production data:
 
 - speaker/cast member
 - exact spoken text
 - shot mapping
-- delivery cue
-- strategy: `lipsync` or `overlay`
+- optional `startMs` / `endMs` or `targetSec` timing
+
+The saved plan still requires one compatibility `dialogueStrategy` value (`lipsync` or `overlay`); keep it aligned with the authoritative project `dialogueMode` rather than treating it as a per-line choice.
 
 Keep lines short and actable. Dialogue should reveal choice, pressure, or relationship. Narration should clarify structure or tone, not describe what the viewer already sees.
 
@@ -38,18 +40,22 @@ Keep lines short and actable. Dialogue should reveal choice, pressure, or relati
 - **Choose ElevenLabs model** -> set project default with `run_action(apply_project_preferences, { preferences: { ttsModel: "eleven_multilingual_v2" | "eleven_v3" } })`, or pass `voiceModel` on one `generate_dialogue_audio` run.
 - **Check cost/missing voices** -> `run_action(generate_dialogue_audio, { dryRun: true })`.
 - **Generate TTS** -> `start_job(generate_dialogue_audio)` after approval.
-- **Generate native dialogue/lipsync** -> write the audio plan, then use `generate_video` with native audio enabled. The video generator reads dialogue/timing cues.
+- **Choose Native dialogue or TTS overlay** -> `run_action(apply_project_settings, { settings: { dialogueMode } })` with `native_dialogue` or `tts_overlay`.
+- **Use source-song mouth timing for one shot** -> `run_action(apply_shot_prompts, { shots: [{ shotId, sourceSongMouthTiming: true }] })`. This sends a source-song timing reference but keeps provider-generated audio off.
+- **Generate Native dialogue** -> write the audio plan, choose `native_dialogue`, then generate video. The provider owns audible speech and mouth movement.
 - **Voice-change native dialogue video** -> after reviewing the raw native-dialogue clip, call `run_action(voice_change_video, { dryRun: true })`, then `start_job(voice_change_video)` after approval. One segment can cover the whole clip; multi-speaker shots need explicit cut ranges.
 
-## Lipsync vs Overlay
+## Three Separate Concepts
 
-Use **lipsync** when the speaker is visible and mouth accuracy matters. Use **overlay** for narration, off-screen speech, memory, commentary, or shots where the mouth is hidden.
+- **Native dialogue**: the video provider generates audible speech and mouth movement. Review the raw clip, then voice-change it if the voice identity is wrong.
+- **TTS overlay**: the provider performs the visible line with audio generation off. Sacred generates TTS separately, mutes the clip's native audio for that shot, and mixes the TTS over a ducked source bed at render.
+- **Source-song mouth timing**: a per-shot visual-performance reference from the uploaded song. It never means Native dialogue and never turns provider audio on.
 
-If the line does not need a visible mouth, overlay is usually safer.
+Use TTS overlay for narration, off-screen speech, or when voice identity matters more than provider-native delivery. Use Native dialogue when visible speech performance and mouth accuracy are primary.
 
 ## Native Dialogue Path
 
-For regional-language visible dialogue, prefer native video dialogue first, then voice change:
+For visible dialogue where provider-native performance is useful:
 
 1. Save dialogue lines and optional timing in the audio plan.
 2. Generate video with native audio so the model creates speech and mouth movement together.
