@@ -38,6 +38,8 @@ After generation, use `describe_prompt({ kind: "look_render", entityType, entity
 
 After `start_job(generate_candidates)`, return the job id and keep working unless the artist explicitly asks you to watch or poll. Studio realtime is the default progress surface; use `get_job` for deliberate checks/watch mode, not habit loops.
 
+Every paid call in this skill uses `start_job(actionKey, input, idempotencyKey)`. Choose one stable 1-200 character key per artist-approved intent, reuse it only for transport retry of that exact action/input, and choose a new key for newly approved work. JSON-RPC request IDs are diagnostics, not retry identity.
+
 ## Prompt Pattern
 
 Use the normal generated prompt unless you can write the whole final reference prompt better. A good `promptOverride` is compact and reference-oriented.

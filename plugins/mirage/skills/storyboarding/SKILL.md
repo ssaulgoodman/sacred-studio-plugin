@@ -94,6 +94,8 @@ After a storyboard `start_job`, return the job id and avoid busy polling. Studio
 
 Keep `gpt-image-2` as the storyboard provider unless the artist explicitly asks to test another model or GPT Image 2 fails repeatedly with a clear provider-specific issue.
 
+Every paid call in this skill uses `start_job(actionKey, input, idempotencyKey)`. Choose one stable 1-200 character key per artist-approved intent, reuse it only for transport retry of that exact action/input, and choose a new key for newly approved work. JSON-RPC request IDs are diagnostics, not retry identity.
+
 ## Avoid
 
 - 3-panel or 3×3 boards; Sacred's canonical renderer supports 2×2 and 2×3 plans.

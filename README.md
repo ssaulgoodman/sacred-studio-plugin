@@ -18,16 +18,15 @@ Compatibility note: the product is Sacred, but the current plugin id, MCP server
 
 - Authentication is OAuth-first: install the plugin, then run `codex mcp login mirage`. Sacred `/connect` handles the browser approval.
 - Bearer-token setup from `/connect` remains a fallback for older clients that do not support MCP OAuth.
-- Project-file sync should use `mirage login` once, then `mirage sync <projectId>`. Use `mirage sync <projectId> --state` for fast read-only snapshots/payloads, `mirage sync <projectId> --payloads` for prompt receipts only, and `mint_cli_token` only as the fallback when the CLI login store is unavailable.
-- Workspace instructions are initialized once with `mirage init`; skills come from this plugin; action schemas come from live MCP.
-- A future plugin/local bridge should own sync and uploads directly instead of asking the agent to reason about shell commands.
+- Task-driven project sync and upload use the dependency-free Node 20 helper packaged beside the Mirage skill. The helper accepts short-lived project tokens only on stdin; `mirage sync` remains the compatibility fallback.
+- Routine plugin work needs no workspace initialization: skills come from this plugin and action schemas come from live MCP. `mirage init` exists only with the standalone CLI fallback.
+- The plugin-local bridge owns sync and Core API uploads without npm installation or a token-bearing shell command.
 
 ## Install Test
 
 From macOS with Codex Desktop:
 
 ```bash
-npm install -g @ssaulgoodman420/mirage-cli@0.1.13
 codex plugin marketplace add ssaulgoodman/sacred-studio-plugin --ref main --sparse .agents/plugins --sparse plugins/mirage
 codex plugin add mirage@mirage
 codex mcp login mirage
@@ -38,13 +37,29 @@ The plugin owns the Sacred MCP registration under the technical id `mirage`. Do 
 
 For clients that do not support plugin-owned OAuth MCP, use the bearer-token snippet from Sacred `/connect` as a fallback.
 
+For an ordinary update, preserve the installed plugin and its OAuth credential:
+
+```bash
+codex plugin marketplace upgrade mirage
+```
+
+Then fully restart Codex once. Do not remove and re-add the plugin during a normal update. Run `codex mcp login mirage` only when `codex mcp list` reports Sacred as not logged in.
+
+## CLI Fallback
+
+The standalone CLI is not part of ordinary plugin install or update. Install it only when the packaged Node helper is unavailable and a task specifically needs the compatibility sync path:
+
+```bash
+npm install -g @ssaulgoodman420/mirage-cli@0.1.15
+```
+
 The first useful prompt after install is:
 
 ```text
-Check Sacred status and open my latest project.
+Open my latest Sacred project.
 ```
 
-Codex should call `mirage_doctor`, run `mirage init` if the folder is new, choose or create a project, and sync project files. If the CLI is not logged in, use `mint_cli_token` for a short-lived sync command or run `mirage login` from the `/connect` fallback token. Project sync should not require a fresh chat; a fresh chat is only needed after installing or updating the plugin.
+Codex should call `open_project` directly. It should not run doctor, inspect package versions, initialize a notebook, or sync files before ordinary project work. Doctor is for install/update/deploy or real failures; local sync is only for tasks that need long editable files, payload traces, or handoff artifacts. Project sync should not require a fresh chat; a fresh chat is only needed after installing or updating the plugin.
 
 For recurring formats like Yapper, Codex should call `list_personas` and `create_project_from_persona` when the artist asks for a saved host/persona such as Padma, instead of asking for the same reference image, style, or voice id again.
 
@@ -57,6 +72,6 @@ The artist experience should become:
 1. Install Sacred plugin.
 2. Connect Sacred with the email Saul assigned.
 3. Open a local workspace folder.
-4. Ask Codex: "Check Sacred status and open my project" or "Start a new Krishna podcast episode."
+4. Ask Codex: "Open my Sacred project" or "Start a new Krishna podcast episode."
 
 The plugin should make Sacred feel like an installed production surface, not a pile of copied instructions.

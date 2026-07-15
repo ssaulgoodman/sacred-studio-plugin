@@ -21,9 +21,9 @@ Use `mirage_doctor` after install, plugin/server updates, deploys, authenticatio
 
 Sacred server/Supabase is canonical truth. Local files are the workbench: useful for reading, editing, diffing, generation traces, and handoff. A local file becomes production only when a Sacred apply action persists it.
 
-Use Sacred MCP for project state, actions, paid jobs, locks, imports, uploads, issue capture, and coherence checks.
+Use Sacred MCP for project state, actions, paid jobs, locks, imports, issue capture, and coherence checks.
 
-Bytes stay outside MCP. Upload local images/audio through `/api/agent/uploads` with the Sacred bearer token, then pass returned asset IDs into actions.
+Bytes stay outside MCP. The plugin-local bridge sends local images/audio to the Core asset endpoint, then returns asset IDs for actions.
 
 ## Local Workspace Shape
 
@@ -62,9 +62,18 @@ After references, storyboards, or videos exist, use `apply_text_edits` for wordi
 
 Project sync writes project files only. It should not rewrite skills, action schemas, `AGENTS.md`, or `CLAUDE.md`.
 
-Install/update the Sacred CLI (`mirage`) without a live project token. MCP auth is OAuth-first: `codex mcp login mirage` opens Sacred `/connect` and the harness stores the MCP credential. This does not automatically log in the standalone `mirage` CLI.
+MCP auth is OAuth-first: `codex mcp login mirage` opens Sacred `/connect` and the harness stores the MCP credential. That harness credential is not exposed to local scripts.
 
-For file sync, prefer the simplest available path: if the CLI is logged in, run `mirage sync <projectId>`; otherwise call `mint_cli_token` and run the returned short-lived sync command. Use `mirage login` only when the artist deliberately wants persistent CLI sync on that machine.
+For task-driven sync or upload, call `mint_cli_token`, resolve `scripts/bridge.mjs` next to this loaded `SKILL.md` to an absolute path, and invoke that absolute sibling path. Start the process with `--token-stdin`, write the short-lived token only to the child process stdin, then close stdin. Never place the token in argv, a shell pipe/command string, environment variables, files, logs, errors, or lock metadata.
+
+Commands:
+
+```text
+node "/absolute/path/to/loaded/skills/mirage/scripts/bridge.mjs" sync --project <id> --profile <full|state|payloads> --token-stdin
+node "/absolute/path/to/loaded/skills/mirage/scripts/bridge.mjs" upload --project <id> --purpose <purpose> --file <path> [--entity <id>] [--new-upload] --token-stdin
+```
+
+Use the full profile for editable drafts/config, `state` for state snapshots, and `payloads` for prompt receipts. `--new-upload` means the artist deliberately wants another asset from identical bytes; ordinary retries omit it and reuse deterministic upload identity. Add `--base-url <url>` only for an explicitly configured non-production Sacred server. The standalone `mirage sync` CLI remains the fallback when the plugin helper is unavailable; do not install or log into it as routine plugin preflight.
 
 Use MCP file reads only when the harness has no shell or local file-write capability.
 
@@ -74,14 +83,14 @@ For local debugging, `mirage status` / `mirage doctor` is the file-level check. 
 
 For uploaded guides, references, audio, or native imagegen outputs:
 
-1. Make sure `mirage auth status` is authenticated, or use `mint_cli_token` as a one-off fallback.
-2. POST the file to `/api/agent/uploads` with the Sacred bearer token and correct `purpose`.
+1. Call `mint_cli_token` for the target project.
+2. Invoke the absolute plugin sibling `scripts/bridge.mjs upload` path with the correct purpose and pass the token only through child stdin.
 3. Use the returned `assetId` in the relevant action.
 
 For native storyboard images, upload with `purpose=storyboard_image`, then call `import_storyboard_image` with the target `shotId`.
 
 ## Paid Work
 
-Ask before paid generation. Prefer `dryRun` where available for cost and missing-requirement checks. Use `start_job` for paid image, storyboard, video, and audio generation, then return the job id and keep working unless the artist explicitly asks you to watch/poll. Studio realtime is the default progress surface; use `get_job` for deliberate checks, not habit loops.
+Ask before paid generation. Prefer `dryRun` where the live action spec explicitly supports it for cost and missing-requirement checks. Every `start_job` call requires one stable 1-200 character `idempotencyKey` for that artist-approved paid intent; reuse it only for transport retry of the exact same action/input, and choose a new key for newly approved work. JSON-RPC request IDs are diagnostics, not retry identity. Use `start_job` for paid image, storyboard, video, and audio generation, then return the job id and keep working unless the artist explicitly asks you to watch/poll. Studio realtime is the default progress surface; use `get_job` for deliberate checks, not habit loops.
 
 If video generation returns provider outcome unknown, pending, or fetch/poll failed, do not retry immediately. Read the generation trace or attempt record, preserve the provider request ID if present, and ask the artist before acknowledging prior charge risk or starting another paid attempt.

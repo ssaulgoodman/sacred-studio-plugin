@@ -19,6 +19,20 @@ Start with `get_shot_context(projectId, shotId)` when available. It gives the sh
 
 Do not generate video to discover what a bad still already tells you.
 
+## Video Feedback Correction Loop
+
+When `open_project` or `get_shot_context` reports open or addressed video feedback, keep the review evidence bound to its exact shot and video asset:
+
+If the artist gives a typed note and asset-local timestamp/range through the director session, record it with `run_action(create_video_feedback)` against the exact active `videoAssetId`. Sacred captures the bounded frame server-side and returns the actual captured timestamp. Never invent a timestamp from another clip version.
+
+1. Call `list_video_feedback` for the project or shot and read the compact timestamped items. Do not pull every frame into context.
+2. Call `get_video_feedback` for one item and inspect its exact captured frame before diagnosing. The frame belongs to the recorded `videoAssetId`; do not apply its timestamp to another clip version.
+3. Diagnose whether the failure belongs to motion wording, board/keyframe, refs, audio, or model behavior. Repair the upstream cause or dry-run a regeneration before spending.
+4. After artist approval and generation, confirm the replacement is the accepted active shot video, then call `run_action(address_video_feedback)` for that one item and replacement asset. A replacement never addresses feedback merely by becoming active and never resolves feedback automatically.
+5. Ask the artist/director to review the addressed replacement. Only after that review call `run_action(resolve_video_feedback)`, or call `run_action(reopen_video_feedback)` for another correction pass. Reopen retains the prior replacement link as audit history. Use `run_action(dismiss_video_feedback)` only as a separate explicit decision.
+
+Do not create a feedback polling/wait loop. Studio is the progress surface for generation, and artist review is an explicit handoff. If the feedback tools are unavailable, stop with the normal restart/login instruction; do not fall back to browser control.
+
 ## Modes
 
 **Keyframe mode:** the start frame carries visual state. The motion prompt says what changes over time. Do not restuff character/style/environment design.
@@ -88,6 +102,8 @@ Use the native-worker packet/receipt contract from `docs/agent-working-method.md
 5. **Native voice wrong but mouth timing works** -> voice-change the video; for two speakers, pass explicit segment cut ranges.
 6. **Model artifact/physics failure** -> one model switch test.
 7. **Shot intent wrong** -> return to script/storyboard.
+
+Every paid call in this skill uses `start_job(actionKey, input, idempotencyKey)`. Choose one stable 1-200 character key per artist-approved intent, reuse it only for transport retry of that exact action/input, and choose a new key for newly approved work. JSON-RPC request IDs are diagnostics, not retry identity.
 
 ## Ask Before
 

@@ -59,6 +59,8 @@ For regional-language visible dialogue, prefer native video dialogue first, then
 
 Do not generate TTS for this path unless the artist specifically wants TTS overlay or a model-supported audio-input experiment.
 
+Every paid call in this skill uses `start_job(actionKey, input, idempotencyKey)`. Choose one stable 1-200 character key per artist-approved intent, reuse it only for transport retry of that exact action/input, and choose a new key for newly approved work. JSON-RPC request IDs are diagnostics, not retry identity.
+
 ## Ask Before
 
 TTS is paid. Dry-run first, report missing voices/cost, then ask. Never generate with missing or uncertain voices.

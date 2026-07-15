@@ -35,6 +35,8 @@ Transcription and applied source lyrics are source material, not automatic dialo
 
 If a long-track transcription is partial, regresses, or stops far before the structure end time, preserve the better source and use `apply_source_lyrics` with canonical/artist-provided text. Do not keep rerunning paid transcription blindly.
 
+Every paid call in this skill uses `start_job(actionKey, input, idempotencyKey)`. Choose one stable 1-200 character key per artist-approved intent, reuse it only for transport retry of that exact action/input, and choose a new key for newly approved work. JSON-RPC request IDs are diagnostics, not retry identity.
+
 ## Ask Before
 
 Audio analysis is paid. State the question first: “Do we need lyrics meaning?” or “Do we need section timing for scene pacing?”
