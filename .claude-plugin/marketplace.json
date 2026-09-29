@@ -1,0 +1,20 @@
+{
+  "name": "sacred",
+  "owner": {
+    "name": "Mothership",
+    "email": "saul@companions.gg"
+  },
+  "metadata": {
+    "description": "Sacred Studio for Claude Code: operate AI video projects with Sacred's production actions and craft skills."
+  },
+  "plugins": [
+    {
+      "name": "sacred",
+      "source": "./plugins/mirage",
+      "description": "Operate Sacred video projects from Claude Code with production actions, craft skills, and project sync.",
+      "version": "0.1.19",
+      "category": "video",
+      "homepage": "https://app.sacredai.studio"
+    }
+  ]
+}

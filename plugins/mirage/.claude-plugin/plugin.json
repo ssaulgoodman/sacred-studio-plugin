@@ -1,0 +1,14 @@
+{
+  "name": "sacred",
+  "version": "0.1.19",
+  "description": "Operate Sacred video projects from Claude Code with production actions, craft skills, and project sync.",
+  "author": {
+    "name": "Mothership",
+    "email": "saul@companions.gg",
+    "url": "https://app.sacredai.studio"
+  },
+  "homepage": "https://app.sacredai.studio",
+  "repository": "https://github.com/ssaulgoodman/sacred-studio-plugin",
+  "license": "UNLICENSED",
+  "keywords": ["sacred", "video", "ai-video", "storyboards", "production", "claude-code"]
+}

@@ -18,7 +18,7 @@ Start with `get_shot_context(projectId, shotId)` when available. It shows the sh
 Build a spatially coherent scene one shot at a time. Each accepted board creates evidence that did not exist in the script: visible positions, screen direction, contact, eyelines, environment geometry, and the shot's ending state. Use that evidence to author the next shot rather than predicting it in advance.
 
 1. Author and persist only the current shot's storyboard prompt with `run_action(apply_storyboard_prompts)`.
-2. After storyboard spend is approved, generate the board with `start_job(generate_storyboard)`.
+2. Generate the board with `start_job(generate_storyboard)` only after the artist has approved storyboard spend. A request to make or start storyboards is not by itself that approval: save the prompt, dry-run if useful, say what the board costs, and ask. Once the artist approves spend for the scene, continue this loop shot by shot without asking again for each board.
 3. When the job completes, call `review_storyboard` and inspect the returned image pixels. Check staging, geography, continuity, action progression, and the shot's ending state.
 4. If the board is wrong, repair the prompt or use a narrow image refine, regenerate, and inspect again. Do not compensate for a bad board in the cut plan.
 5. Once the board is good, write the cut plan from what is actually visible and save it with `run_action(apply_storyboard_cut_plan)`, passing the active storyboard version ID returned by `review_storyboard`.

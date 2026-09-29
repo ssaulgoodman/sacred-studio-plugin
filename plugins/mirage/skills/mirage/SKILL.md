@@ -1,6 +1,6 @@
 ---
 name: mirage
-description: Use when connecting Codex to Sacred, opening or refreshing a Sacred workspace, choosing a project, syncing project files, uploading media, or explaining the Sacred operating loop.
+description: Use when connecting Codex or Claude Code to Sacred, opening or refreshing a Sacred workspace, choosing a project, syncing project files, uploading media, or explaining the Sacred operating loop.
 ---
 
 # Sacred
@@ -11,7 +11,7 @@ Use Sacred as an agent-operated video studio. Help the artist move one Sacred pr
 
 Routine use is deliberately short:
 
-1. Confirm Sacred MCP tools are visible under the `mirage` server id. If they are absent, stop. Do not fall back to browser control or local CLI project reads; ask the artist to fully restart the harness, then run `codex mcp login mirage` only if `codex mcp list` says Sacred is not logged in.
+1. Confirm Sacred MCP tools are visible from the shared `mirage` server. Codex lists them under the `mirage` server id; Claude Code scopes the plugin's server, so they appear as `mcp__plugin_sacred_mirage__<tool>` (for example `mcp__plugin_sacred_mirage__open_project`). If they are absent, stop. Do not fall back to browser control or local CLI project reads; ask the artist to fully restart the harness, then log in only if the harness reports Sacred as not authenticated (see Authentication).
 2. Call `open_project` directly with the project ID, the artist's title/query, or `latest: true`. It resolves and opens in one call. Use project/workspace lists only when the request is ambiguous.
 3. Continue from the returned live state. Do not run doctor, package/version inspection, workspace init, or sync before ordinary project work.
 
@@ -62,7 +62,17 @@ After references, storyboards, or videos exist, use `apply_text_edits` for wordi
 
 Project sync writes project files only. It should not rewrite skills, action schemas, `AGENTS.md`, or `CLAUDE.md`.
 
-MCP auth is OAuth-first: `codex mcp login mirage` opens Sacred `/connect` and the harness stores the MCP credential. That harness credential is not exposed to local scripts.
+## Authentication
+
+MCP auth is OAuth-first. Both harnesses open Sacred `/connect`, where the artist approves the connection, and then store and refresh the credential themselves. That harness credential is not exposed to local scripts.
+
+- Codex: `codex mcp login mirage`; check status with `codex mcp list`.
+- Claude Code: run `/mcp`, select the Sacred `mirage` server, and choose Authenticate.
+
+If a Sacred call fails because authentication is missing, expired, or revoked, the harness normally refreshes on its own. If it still fails, stop Sacred work, tell the artist Sacred needs to reconnect, and give them the one step for their harness above. Do not retry paid actions, switch to browser control, mint tokens as a workaround, or ask for a bearer token in chat. An access error (account not admitted or suspended) is different: logging in again will not fix it, so tell the artist to contact a Sacred administrator.
+
+## Local Sync Tokens
+
 
 For task-driven sync or upload, call `mint_cli_token`, resolve `scripts/bridge.mjs` next to this loaded `SKILL.md` to an absolute path, and invoke that absolute sibling path. Start the process with `--token-stdin`, write the short-lived token only to the child process stdin, then close stdin. Never place the token in argv, a shell pipe/command string, environment variables, files, logs, errors, or lock metadata.
 
@@ -91,6 +101,6 @@ For native storyboard images, upload with `purpose=storyboard_image`, then call 
 
 ## Paid Work
 
-Ask before paid generation. Prefer `dryRun` where the live action spec explicitly supports it for cost and missing-requirement checks. Every `start_job` call requires one stable 1-200 character `idempotencyKey` for that artist-approved paid intent; reuse it only for transport retry of the exact same action/input, and choose a new key for newly approved work. JSON-RPC request IDs are diagnostics, not retry identity. Use `start_job` for paid image, storyboard, video, and audio generation, then return the job id and keep working unless the artist explicitly asks you to watch/poll. Studio realtime is the default progress surface; use `get_job` for deliberate checks, not habit loops.
+Ask before paid generation. A request to make, generate, or get paid work going is not by itself approval to spend: approval is the artist's yes after seeing what the spend covers (from a dry run or estimate), or an explicit spend approval in their message such as "I approve the storyboard spend". This applies equally to storyboards, images, video, and audio. Until then, do the free work (author and save prompts, dry-run) and ask. Prefer `dryRun` where the live action spec explicitly supports it for cost and missing-requirement checks. Every `start_job` call requires one stable 1-200 character `idempotencyKey` for that artist-approved paid intent; reuse it only for transport retry of the exact same action/input, and choose a new key for newly approved work. JSON-RPC request IDs are diagnostics, not retry identity. Use `start_job` for paid image, storyboard, video, and audio generation, then return the job id and keep working unless the artist explicitly asks you to watch/poll. Studio realtime is the default progress surface; use `get_job` for deliberate checks, not habit loops.
 
 If video generation returns provider outcome unknown, pending, or fetch/poll failed, do not retry immediately. Read the generation trace or attempt record, preserve the provider request ID if present, and ask the artist before acknowledging prior charge risk or starting another paid attempt.
