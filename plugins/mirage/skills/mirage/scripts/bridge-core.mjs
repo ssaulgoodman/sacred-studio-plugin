@@ -15,6 +15,8 @@ export const ASSET_PURPOSES = new Set([
   'storyboard_image',
   'keyframe_image',
   'audio_source',
+  'composition_bundle',
+  'media',
 ]);
 
 const STATE_FILE = '.sync-state.json';
@@ -353,7 +355,7 @@ const requestJson = async (url, options, token, fetchImpl) => {
     fail('invalid_response', `Sacred returned a non-JSON response with HTTP ${response.status}.`, { status: response.status });
   }
   if (!response.ok || json.ok === false) {
-    const serverError = json.error && typeof json.error === 'object' ? json.error : {};
+    const serverError = json.error && typeof json.error === 'object' ? json.error : typeof json.message === 'string' ? json : {};
     const rawMessage = typeof serverError.message === 'string' ? serverError.message : 'Sacred request failed.';
     const message = rawMessage.includes(token) ? 'Sacred request failed.' : rawMessage.slice(0, 500);
     fail(typeof serverError.code === 'string' ? serverError.code : 'request_failed', message, {
@@ -698,9 +700,11 @@ export const deterministicUploadIdempotencyKey = (input) => {
 };
 
 const validateUploadReceipt = (receipt, expected) => {
-  if (!receipt || receipt.kind !== 'mirage.asset.uploaded' || receipt.projectId !== expected.projectId
+  const media = expected.purpose === 'media';
+  if (!receipt || (media ? !['video', 'image', 'audio'].includes(receipt.kind) : receipt.kind !== 'mirage.asset.uploaded') || receipt.projectId !== expected.projectId
     || receipt.purpose !== expected.purpose || (receipt.entityId || null) !== (expected.entityId || null)
-    || receipt.filename !== expected.filename || receipt.contentType !== expected.contentType
+    || receipt.filename !== expected.filename || (!media && receipt.contentType !== expected.contentType)
+    || (media && (receipt.uploadId !== receipt.assetId || receipt.sha256 !== expected.sha256 || !receipt.contentType.startsWith(`${receipt.kind}/`)))
     || receipt.size !== expected.size || typeof receipt.assetId !== 'string' || !receipt.assetId
     || typeof receipt.requestId !== 'string' || !receipt.requestId
     || !receipt.idempotency || receipt.idempotency.key !== expected.idempotencyKey
@@ -728,36 +732,50 @@ export const uploadProjectAsset = async (options) => {
   let stat;
   try { stat = fs.lstatSync(filePath); } catch { fail('file_not_found', 'Upload file was not found.'); }
   if (!stat.isFile() || stat.isSymbolicLink()) fail('invalid_file', 'Upload source must be a regular non-symlink file.');
-  if (stat.size < 1 || stat.size > (options.maxUploadBytes || MAX_UPLOAD_BYTES)) {
+  const bundle = purpose === 'composition_bundle';
+  const media = purpose === 'media';
+  if (stat.size < 1 || stat.size > (options.maxUploadBytes || (bundle || media ? 500 * 1024 * 1024 : MAX_UPLOAD_BYTES))) {
     fail('file_size_invalid', 'Upload file is empty or exceeds the supported size limit.');
   }
   const filename = normalizeUploadFilename(filePath);
-  const contentType = MIME_TYPES.get(path.extname(filename).toLowerCase());
+  const contentType = media ? 'application/octet-stream' : bundle ? (filename.endsWith('.tar.gz') ? 'application/gzip' : null) : MIME_TYPES.get(path.extname(filename).toLowerCase());
   if (!contentType) fail('unsupported_media_type', 'Upload file extension is not supported.');
-  const bytes = fs.readFileSync(filePath);
-  if (bytes.length !== stat.size) fail('file_changed', 'Upload file changed while it was being read.');
-  const fileHash = sha256(bytes);
+  let fileHash;
+  let body;
+  if (media) {
+    // A disk-backed Blob streams multipart bytes without retaining the file.
+    body = await fs.openAsBlob(filePath, { type: contentType });
+    const hash = crypto.createHash('sha256');
+    for await (const chunk of body.stream()) hash.update(chunk);
+    fileHash = hash.digest('hex');
+  } else {
+    const bytes = fs.readFileSync(filePath);
+    body = new Blob([bytes], { type: contentType });
+    fileHash = sha256(bytes);
+  }
+  if (body.size !== stat.size) fail('file_changed', 'Upload file changed while it was being read.');
   const idempotencyKey = deterministicUploadIdempotencyKey({
     projectId,
     purpose,
     entityId,
     filename,
     contentType,
-    size: bytes.length,
+    size: body.size,
     sha256: fileHash,
     newUpload: options.newUpload,
   });
   const form = new FormData();
+  if (bundle) form.append('projectId', projectId);
   form.append('purpose', purpose);
   if (entityId) form.append('entityId', entityId);
-  form.append('file', new Blob([bytes], { type: contentType }), filename);
+  form.append('file', body, filename);
   const { data, response } = await requestJson(
-    `${baseUrl}/api/v1/projects/${encodeURIComponent(projectId)}/assets/upload`,
+    bundle ? `${baseUrl}/api/agent/uploads` : `${baseUrl}/api/v1/projects/${encodeURIComponent(projectId)}/assets/upload`,
     {
       method: 'POST',
       headers: {
         authorization: `Bearer ${token}`,
-        'idempotency-key': idempotencyKey,
+        ...(bundle ? {} : { 'idempotency-key': idempotencyKey }),
         'x-mirage-bridge-version': BRIDGE_VERSION,
       },
       body: form,
@@ -765,6 +783,15 @@ export const uploadProjectAsset = async (options) => {
     token,
     options.fetchImpl || fetch,
   );
+  if (bundle) {
+    if (data?.kind !== 'mirage.agent.upload' || data.projectId !== projectId || data.purpose !== purpose
+      || !/^[0-9a-f-]{36}$/.test(data.uploadId || '') || data.uploadId !== data.assetId) {
+      fail('invalid_response', 'Sacred returned an invalid composition upload receipt.');
+    }
+    return { ok: true, kind: options.receiptKind || 'mirage.bridge.upload', projectId, assetId: data.assetId,
+      uploadId: data.uploadId, purpose, filename, contentType, size: body.size, sha256: fileHash,
+      use: { actionKey: 'render_composition', inputField: 'bundle.uploadId', note: 'Preview this version on the project page, read timestamped comments, and render only after human approval.' } };
+  }
   const replayHeader = response.headers.get('idempotency-replayed');
   if (replayHeader !== 'true' && replayHeader !== 'false') {
     fail('invalid_response', 'Sacred returned an invalid asset upload replay receipt.');
@@ -776,7 +803,8 @@ export const uploadProjectAsset = async (options) => {
     entityId,
     filename,
     contentType,
-    size: bytes.length,
+    size: body.size,
+    sha256: fileHash,
     idempotencyKey,
     replayed,
   });
@@ -789,11 +817,12 @@ export const uploadProjectAsset = async (options) => {
     purpose,
     entityId,
     filename,
-    contentType,
-    size: bytes.length,
+    contentType: receipt.contentType,
+    size: body.size,
     sha256: fileHash,
     idempotencyKey,
     replayed,
     use: receipt.use,
+    ...(media ? { uploadId: receipt.uploadId, mediaKind: receipt.kind, next: receipt.next } : {}),
   };
 };

@@ -1,0 +1,3 @@
+# Third-party files kept byte for byte.
+fonts/* -whitespace
+vendor/* -whitespace

@@ -29,6 +29,10 @@ Spend only if analysis will change script, pacing, or production choices.
 
 Uploading audio does not automatically analyze it.
 
+Lyric transcription uses only the Echo lyrics engine, with Gemini for words and an Indic forced aligner for timing. Supply `language` as Tamil, Kannada, Telugu, Malayalam, Sanskrit, or Hindi unless the project already has a supported language. `genre` defaults to `devotional`; request another genre when appropriate. Optional `transliterations` accepts any of those script names plus English. Sacred saves timestamped source lyrics, source/transliteration SRT assets, engine version provenance, and reported spend.
+
+The existing job polls Echo every 10 seconds for up to 30 minutes. Missing engine configuration, unsupported language, or an engine failure stops transcription. Never fall back to Sacred Gemini or resubmit blindly after a timeout. Ask the owner to configure the lyrics engine when unavailable; use `apply_source_lyrics` when the artist supplies canonical text.
+
 ## Use The Result
 
 Transcription and applied source lyrics are source material, not automatic dialogue. Structure is pacing evidence, not a mandatory scene list. Convert the analysis into concrete decisions: scene boundaries, shot duration, visual emphasis, lyric references, or what to ignore.

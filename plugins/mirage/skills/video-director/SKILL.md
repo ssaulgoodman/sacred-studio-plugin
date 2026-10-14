@@ -70,6 +70,7 @@ Weak:
 - **Check requirements/cost/prompt composition** -> `run_action(generate_video, { dryRun: true, dryRunSummary: true })` for routine work; omit `dryRunSummary` when you need the exact full prompt body.
 - **Generate** -> `start_job(generate_video)` after approval.
 - **Make a non-destructive Shorts/alternate take** -> dry-run first with `run_action(generate_video, { dryRun: true, dryRunSummary: true, outputMode: "media_library", aspectRatio: "9:16", variantPurpose: "shorts" })`, then after approval call `start_job(generate_video)` with the same `outputMode`, `aspectRatio`, and `variantPurpose`. This saves a media-library take only; it does not replace the active shot video or render timeline.
+- **Artist wants an in-flight video stopped** -> confirm, then `run_action(cancel_job, { projectId, jobId })`. It is a local cancel: the shot is freed, a request not yet sent is stopped for free, otherwise the provider keeps running and its output lands as a recoverable version, never the active video. Read the returned `runnerState` / `nextActions`; only `generate_video` jobs can be cancelled.
 - **Previous provider outcome unknown/pending** -> do not retry until the artist acknowledges the risk; pass `acknowledgePreviousChargeRisk: true` only after that approval.
 - **One exact final prompt needed** -> use `promptOverride` on `generate_video`.
 - **One storyboard-video prompt segment is hurting one call** -> use `contextOverrides` on `generate_video` dry-run first, e.g. `{ includeShotBeat: false }` or `{ includeCutPlan: false }`, then generate only after the composition reads clean. If that decision should survive later Studio/agent regenerations, persist it with `apply_shot_prompts({ shots: [{ shotId, videoPromptSlots: { includeShotBeat: false, includeCutPlan: true } }] })`.
@@ -78,6 +79,7 @@ Weak:
 - **Need exact full payload text from last time** -> `run_action(describe_prompt, { kind: "video" })` for video, or `run_action(describe_prompt, { kind: "storyboard_render" })` for storyboard renders. `describe_video_prompt` is compatibility only.
 - **Repeatable format needed** -> `run_action(list_workflows)`, then `run_action(apply_project_workflow)` if a named recipe fits. After that, fill the stored recipe's slots with `recipeSlots` and project dialogue; do not rewrite the wrapper.
 - **Native dialogue voice needs character match** -> generate the raw native-audio clip first, review it, then use `voice_change_video` from the audio surface. Do not solve this with TTS unless the artist wants overlay.
+- **Next shot chains from this shot's last frame (keyframe mode)** -> after the video lands, Sacred marks that next shot stale and lists it in `staleShotIds` / `nextActions`; it never rewrites its prompts. Check it with `get_shot_context` and save any new start-frame/motion text yourself with `run_action(apply_shot_prompts)`.
 - **Board/frame wrong** -> return to storyboarding/keyframe tools before video.
 - **Same failure twice** -> change model or upstream input, not just the same retry.
 

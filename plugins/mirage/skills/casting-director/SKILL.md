@@ -30,7 +30,7 @@ Fix weak anchors before spending on boards or videos.
 - **Artist wants to undo a reference change/clear** -> `run_action(restore_reference)`; omit `sourceAssetId` for the latest previous reference.
 - **Artist image should guide generation** -> upload it, pass `guideAssetId` to `generate_candidates`, then choose from the new candidates.
 - **One exact idea is needed** -> use `promptOverride` for one entity only. It replaces the normal composed prompt text; preview it before spending.
-- **Small soft correction** -> use `note`; Sacred rewrites the saved generation prompt before rendering.
+- **Small correction** -> read the current prompt with `run_action(generate_candidates, { dryRun: true, dryRunSummary: false })`, write the corrected full prompt yourself, and pass it as `promptOverride` for that one entity. Sacred does not rewrite prompts from notes; `note` without `promptOverride` is rejected.
 - **Wrong style/context attached** -> use `contextOverrides` to include/exclude style image, style description, guide image, or style-note sections.
 
 Sacred saves the generated prompt on the cast/environment row and logs the exact render prompt. Use that trail when diagnosing drift.
