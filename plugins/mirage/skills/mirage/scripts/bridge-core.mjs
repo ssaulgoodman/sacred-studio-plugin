@@ -1,6 +1,9 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { createGunzip } from 'node:zlib';
 
 export const BRIDGE_VERSION = '1';
@@ -347,7 +350,7 @@ const pathMatchesSyncProfile = (projectId, profile, relativePath) => {
 const requestJson = async (url, options, token, fetchImpl) => {
   let response;
   try {
-    response = await fetchImpl(url, options);
+    response = await fetchImpl(url, { ...options, redirect: 'error' });
   } catch {
     fail('network_failed', 'Sacred could not be reached.');
   }
@@ -859,4 +862,140 @@ export const uploadProjectAsset = async (options) => {
     use: receipt.use,
     ...(media ? { uploadId: receipt.uploadId, mediaKind: receipt.kind, next: receipt.next } : {}),
   };
+};
+
+// Both adapters use the credential store written by `mirage login`. Account
+// and minted project credentials remain in memory and Authorization headers.
+const secrets = new Set();
+const redact = (value) => {
+  if (typeof value === 'string') {
+    for (const secret of secrets) if (secret) value = value.split(secret).join('[redacted]');
+    return value;
+  }
+  if (Array.isArray(value)) return value.map(redact);
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, item]) => [redact(key), redact(item)]));
+  return value;
+};
+export const bridgeErrorReceipt = (error) => redact({ ok: false,
+  code: error instanceof BridgeFailure ? error.code : 'bridge_failed',
+  message: error instanceof BridgeFailure ? error.message : 'Sacred bridge failed.',
+  ...(error instanceof BridgeFailure && error.details ? { details: error.details } : {}),
+});
+export const resolveBridgeAuth = async (options) => {
+  const projectId = normalizeProjectId(options.projectId);
+  if (options.tokenStdin) {
+    const token = await readTokenFromStdin();
+    secrets.add(token);
+    return { token, baseUrl: normalizeBaseUrl(options.baseUrl || process.env.MIRAGE_API_URL) };
+  }
+  const authFile = process.env.MIRAGE_AUTH_FILE
+    || path.join(process.env.MIRAGE_AUTH_DIR || path.join(os.homedir(), '.mirage'), 'auth.json');
+  const auth = readJson(authFile, null);
+  if (!auth?.mcpToken) fail('auth_missing', 'Run mirage login, or use --token-stdin with a short-lived project token.', undefined, 2);
+  const bearer = normalizeToken(auth.mcpToken);
+  secrets.add(bearer);
+  const baseUrl = normalizeBaseUrl(options.baseUrl || process.env.MIRAGE_API_URL || auth.apiUrl);
+  if (auth.apiUrl && normalizeBaseUrl(auth.apiUrl) !== baseUrl) {
+    fail('auth_origin_mismatch', 'The saved login belongs to another server. Log in to this server or use --token-stdin.', undefined, 2);
+  }
+  const { data } = await requestJson(`${baseUrl}/api/notebook-sync/projects/${encodeURIComponent(projectId)}/cli-token`, {
+    method: 'POST', headers: { authorization: `Bearer ${bearer}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ ttlMinutes: 15 }),
+  }, bearer, options.fetchImpl || fetch);
+  if (data?.scopeProjectId !== projectId || data?.tokenKind !== 'cli') fail('invalid_response', 'Sacred returned an invalid project credential.');
+  const token = normalizeToken(data.token);
+  secrets.add(token);
+  return { token, baseUrl };
+};
+
+const runFileAction = async (options, actionKey, input, idempotencyKey) => {
+  const { data } = await requestJson(`${options.baseUrl}/api/v1/projects/${encodeURIComponent(options.projectId)}/actions/run`, {
+    method: 'POST', headers: { authorization: `Bearer ${options.token}`, 'content-type': 'application/json',
+      ...(idempotencyKey ? { 'idempotency-key': idempotencyKey } : {}) },
+    body: JSON.stringify({ actionKey, input }),
+  }, options.token, options.fetchImpl || fetch);
+  if (data?.kind !== 'mirage.action.result' || data.actionKey !== actionKey || data.projectId !== options.projectId || !data.result) {
+    fail('invalid_response', 'Sacred returned an invalid action receipt.');
+  }
+  return data.result;
+};
+
+export const saveProjectAsset = async (options) => {
+  if (!['video', 'image', 'audio', 'composition_bundle'].includes(options.kind)) fail('invalid_kind', 'Use --kind video, image, audio or composition_bundle.');
+  const upload = await uploadProjectAsset({ ...options, purpose: options.kind === 'composition_bundle' ? 'composition_bundle' : 'media' });
+  if (upload.mediaKind && upload.mediaKind !== options.kind) fail('kind_mismatch', 'The file media type does not match --kind.');
+  const input = { projectId: options.projectId, kind: options.kind === 'composition_bundle' ? 'composition' : options.kind,
+    source: { uploadId: upload.uploadId },
+    ...(options.stage ? { stage: options.stage } : {}), ...(options.slot ? { slot: options.slot } : {}),
+    ...(options.label ? { label: options.label } : {}),
+    ...(options.derivedFrom?.length ? { derivedFrom: options.derivedFrom.map((assetId) => ({ assetId, role: 'input' })) } : {}),
+  };
+  const idempotencyKey = `mirage-save-v1-${sha256(JSON.stringify(input))}`;
+  const result = await runFileAction(options, 'register_asset', { ...input, idempotencyKey }, idempotencyKey);
+  if (!/^[0-9a-f-]{36}$/i.test(result.assetId || '')) fail('invalid_response', 'Sacred returned an invalid saved asset.');
+  return { ok: true, kind: options.receiptKind || 'mirage.bridge.save', projectId: options.projectId,
+    assetId: result.assetId, uploadId: upload.uploadId, created: result.created, filename: upload.filename };
+};
+
+export const fetchProjectAsset = async (options) => {
+  if (!options.outputPath) fail('missing_output', 'Use -o <path> for the downloaded file.');
+  if (!/^[0-9a-f-]{36}$/i.test(options.assetId || '')) fail('invalid_asset', 'fetch requires an asset UUID.');
+  const filePath = path.resolve(options.outputPath);
+  if (pathExists(filePath) && !options.force) fail('output_exists', 'Output exists. Choose another path or use --force.');
+  const result = await runFileAction(options, 'fetch_asset', { projectId: options.projectId, assetId: options.assetId });
+  if (result.assetId !== options.assetId || !result.downloadUrl) fail('download_unavailable', 'This asset is not available to download.');
+  let url;
+  try { url = new URL(result.downloadUrl); } catch { fail('invalid_response', 'Sacred returned an invalid download URL.'); }
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) fail('invalid_response', 'Sacred returned an invalid download URL.');
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  const temp = path.join(path.dirname(filePath), `.mirage-fetch-${crypto.randomUUID()}.tmp`);
+  try {
+    // The signed URL authorizes storage. Never forward an account/project token.
+    const response = await (options.fetchImpl || fetch)(url, { redirect: 'error' });
+    if (!response.ok || !response.body) fail('download_failed', 'The download failed. Fetch the asset again for a fresh URL.');
+    await pipeline(Readable.fromWeb(response.body), fs.createWriteStream(temp, { flags: 'wx', mode: 0o600 }));
+    const size = fs.statSync(temp).size;
+    if (result.size != null && size !== result.size) fail('download_size_mismatch', 'Downloaded file size does not match the asset.');
+    if (!options.force) {
+      fs.linkSync(temp, filePath); // Atomic no-clobber, including a concurrent writer.
+      fs.unlinkSync(temp);
+    } else fs.renameSync(temp, filePath);
+    return { ok: true, kind: options.receiptKind || 'mirage.bridge.fetch', projectId: options.projectId,
+      assetId: options.assetId, filePath, size, mediaType: result.mediaType,
+      ...(result.reuse ? { reuse: result.reuse, usage: result.usage } : {}) };
+  } catch (error) {
+    if (error instanceof BridgeFailure) throw error;
+    fail('download_failed', 'Could not write the downloaded asset. Check the output path and retry.');
+  } finally { fs.rmSync(temp, { force: true }); }
+};
+
+export const parseBridgeArgs = (argv) => {
+  const command = argv[0];
+  if (!['save', 'fetch', 'sync', 'upload'].includes(command)) fail('unknown_command', 'Bridge command must be sync, upload, save or fetch.');
+  const options = { command, syncProfile: 'full', workspace: process.cwd() };
+  const fields = { '--project': 'projectId', '--profile': 'syncProfile', '--purpose': 'purpose', '--file': 'filePath',
+    '--entity': 'entityId', '--base-url': 'baseUrl', '--api-url': 'baseUrl', '--kind': 'kind', '--stage': 'stage',
+    '--slot': 'slot', '--label': 'label', '-o': 'outputPath', '--output': 'outputPath', '--asset': 'assetId' };
+  const flags = { '--token-stdin': 'tokenStdin', '--new-upload': 'newUpload', '--force': 'force', '--recover-lock': 'recoverLock' };
+  for (let i = 1; i < argv.length; i++) {
+    const arg = argv[i];
+    if (flags[arg]) options[flags[arg]] = true;
+    else if (fields[arg] || arg === '--derived-from') {
+      const value = argv[++i];
+      if (!value || value.startsWith('-')) fail('missing_value', 'A command option is missing its value.');
+      if (arg === '--derived-from') (options.derivedFrom ||= []).push(value);
+      else options[fields[arg]] = value;
+    } else if (i === 1 && !arg.startsWith('-') && ['save', 'fetch'].includes(command)) {
+      options[command === 'save' ? 'filePath' : 'assetId'] = arg;
+    } else fail('unknown_arg', 'Unknown bridge option. Tokens are accepted only through login or --token-stdin.');
+  }
+  if (!options.projectId) fail('missing_project', '--project is required.');
+  options.projectId = normalizeProjectId(options.projectId);
+  return options;
+};
+export const runBridgeCommand = async (options, adapter = 'plugin') => {
+  const auth = await resolveBridgeAuth(options);
+  const input = { ...options, ...auth, receiptKind: `mirage.${adapter}.${options.command}` };
+  const run = { sync: syncProjectFiles, upload: uploadProjectAsset, save: saveProjectAsset, fetch: fetchProjectAsset }[options.command];
+  return redact(await run(input));
 };
