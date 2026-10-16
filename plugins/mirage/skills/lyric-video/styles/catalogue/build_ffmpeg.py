@@ -60,6 +60,10 @@ def main() -> None:
     p.add_argument("--color", default=rs.DEFAULT_COLOR)
     p.add_argument("--offset-x", type=int, default=0)
     p.add_argument("--offset-y", type=int, default=0)
+    p.add_argument("--fade-in", type=float, help="Audio fade seconds; Short default 0.3, landscape 0; 0 disables")
+    p.add_argument("--fade-out", type=float, help="Audio fade seconds; Short default 1.0, landscape 0; 0 disables")
+    p.add_argument("--preview", nargs=2, action="append", metavar=("STILL", "SECONDS"),
+                   help="Local still and time relative to the output; repeat for several proxy JPGs")
     p.add_argument("--tar", action="store_true")
     a = p.parse_args()
     if a.lang not in FONT_FILES:
@@ -85,6 +89,20 @@ def main() -> None:
     if not math.isfinite(clip_start) or clip_start < 0 or not math.isfinite(clip_duration) or clip_duration < dur:
         p.error("Clip start must be nonnegative and clip duration must cover the audio range")
     short = a.format == "short"
+    fades = [a.fade_in if a.fade_in is not None else (0.3 if short else 0),
+             a.fade_out if a.fade_out is not None else (1.0 if short else 0)]
+    if any(not math.isfinite(value) or value < 0 for value in fades):
+        p.error("Audio fades must be finite and nonnegative; use 0 to disable")
+    fade_in, fade_out = [min(value, dur) for value in fades]
+    previews = []
+    for still, timestamp in a.preview or []:
+        try:
+            at = float(timestamp)
+        except ValueError:
+            p.error("Preview time must be seconds relative to the output")
+        if not math.isfinite(at) or not 0 <= at < dur or not Path(still).is_file():
+            p.error("Preview needs an existing still and a time inside the output")
+        previews.append((Path(still).resolve(), at))
     a.position = a.position or ("bottom-center" if short else rs.DEFAULT_POSITION)
     if short and a.position != "bottom-center":
         p.error("Short format uses bottom-center placement")
@@ -134,11 +152,17 @@ def main() -> None:
     else:
         filter_args = ["-map", "0:v", "-map", "1:a", "-vf",
                        f"{rs.frame_filter()},ass=subtitles.ass:shaping=complex:fontsdir=fonts"]
+    audio_filters = []
+    if fade_in:
+        audio_filters.append(f"afade=t=in:st=0:d={fade_in:.3f}")
+    if fade_out:
+        audio_filters.append(f"afade=t=out:st={dur - fade_out:.3f}:d={fade_out:.3f}")
     job = {
         **({"assets": [{"assetId": a.clip_asset, "as": clip, "role": "source_clip"}]} if a.clip_asset else {}),
         "args": [*input_args, "-i", "song.m4a", *filter_args,
                  "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-g", "48", "-pix_fmt", "yuv420p",
                  "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",
+                 *(["-af", ",".join(audio_filters)] if audio_filters else []),
                  "-c:a", "aac", "-b:a", "192k", "-t", f"{dur:.3f}", "-movflags", "+faststart"],
         "output": "output.mp4",
     }
@@ -148,8 +172,24 @@ def main() -> None:
         "width": style.frame_w, "height": style.frame_h, "language": a.lang, "position": a.position,
         "size": style.font_size, "color": style.color, "offsetX": a.offset_x, "offsetY": a.offset_y,
         "range": {"start": a.start, "duration": dur}, "cues": len(cues),
+        "audioFades": {"in": fade_in, "out": fade_out},
         "sources": {"srt": Path(a.srt).name, "clip": {"assetId": a.clip_asset, "start": clip_start, "duration": clip_duration} if a.clip_asset else Path(a.clip).name, "audio": Path(a.audio).name},
     }, indent=2) + "\n", encoding="utf-8")
+    # Proxies use the exact render graph and ASS at the requested output time.
+    # Keep them outside the bundle so they cannot become accidental render inputs.
+    for index, (still, at) in enumerate(previews, 1):
+        preview_dir = out.with_name(out.name + "-previews")
+        preview_dir.mkdir(exist_ok=True)
+        timestamp_filter = f"setpts=PTS+{at:.6f}/TB,ass="
+        if short:
+            graph = picture.replace("ass=", timestamp_filter).replace("[v]", ",scale=360:640[v]")
+            filters = ["-filter_complex", graph, "-map", "[v]"]
+        else:
+            graph = filter_args[-1].replace("ass=", timestamp_filter) + ",scale=640:360"
+            filters = ["-vf", graph]
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-loop", "1", "-i", str(still),
+                        *filters, "-frames:v", "1", "-q:v", "2",
+                        str(preview_dir / f"preview-{index:02d}.jpg")], cwd=out, check=True)
     if a.tar:
         with tarfile.open(f"{out}.tar.gz", "w:gz", format=tarfile.PAX_FORMAT) as tar:
             for item in sorted(out.rglob("*")):

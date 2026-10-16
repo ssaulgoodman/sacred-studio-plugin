@@ -25,17 +25,21 @@ Optional on both: `--start 27 --duration 33` for an excerpt, `--position right-t
 
 ## Cut a Short from a finished video
 
-Read `get_catalogue_song` and choose a section from `structure.sections`, preferably a chorus. Structure is labelled model-written and may be null, so confirm the chosen range against the song. Use `search_media` with `filters: { songId, finalVideo: true }` and `kinds: ["video_window"]` to find its finished music video. Choose its `assetId`, including a matching entry in `sources` when several sources share a moment, and check `metadata.songAligned` before treating song timestamps as video timestamps. If false or absent, inspect the video timing and supply the correct `--clip-start` separately from `--start`.
+Read `get_catalogue_song` and choose a section from `structure.sections`, preferably a chorus. Structure is labelled model-written and may be null, so confirm the chosen range against the song. Use `search_media` with `filters: { songId, finalVideo: true }` and `kinds: ["video_window"]`, and `distinctAssets: true` to find its finished music video. Choose its `assetId`, including a matching entry in `sources` when several sources share a moment, and check `metadata.songAligned` before treating song timestamps as video timestamps. If false or absent, inspect the video timing and supply the correct `--clip-start` separately from `--start`.
 
-Download the trusted Telugu SRT and master audio from `get_catalogue_song`. Build into an empty output folder:
+Use the original song language and script unless the artist asks otherwise. The catalogue also offers Sanskrit, Kannada, Telugu, Tamil and Malayalam scripts. Download the trusted original-language SRT and master audio from `get_catalogue_song`. Build into an empty output folder:
 
 ```bash
-python3 build_ffmpeg.py --format short --srt song_tel.srt --lang tel \
+python3 build_ffmpeg.py --format short --srt song_san.srt --lang san \
   --clip-asset <finished-video-assetId> --clip-start 83 --clip-duration 30 \
   --audio song.wav --out ./short-job --tar
 ```
 
-`--clip-start` and `--clip-duration` default the audio/SRT range too; `--start` and `--duration` can override that range. The job seeks the fetched video before decoding, without looping or copying it into the bundle. The bundle carries only `subtitles.ass`, the script font, the audio range and job/settings JSON. Upload `short-job.tar.gz` with `purpose=composition_bundle`, then call `render_media` with `{ projectId, bundle: { uploadId }, ...ffmpegJob }`, where `ffmpegJob` is the complete `ffmpeg-job.json`, including `assets`, `args` and `output`. Retain the `runId`, read `get_runner_status`, and call `request_review` for the returned output `assetId`.
+`--clip-start` and `--clip-duration` default the audio/SRT range too; `--start` and `--duration` can override that range. The job seeks the fetched video before decoding, without looping or copying it into the bundle. The bundle carries only `subtitles.ass`, the script font, the audio range and job/settings JSON. Upload `short-job.tar.gz` with `purpose=composition_bundle`, then call `render_media` with `{ projectId, bundle: { uploadId }, ...ffmpegJob }`, where `ffmpegJob` is the complete `ffmpeg-job.json`, including `assets`, `args` and `output`. Pass stage `shorts`, slot `short:<theme>`, and label `<Song> Short (m:ss to m:ss)`. Retain the `runId`, read `get_runner_status`, download its 15-minute `downloadUrl` and inspect a few actual frames before `request_review` for the output `assetId`.
+
+Short audio defaults to a 0.3 s fade in and 1.0 s fade out. Set `--fade-in 0 --fade-out 0` to disable them or supply other durations. Fades are clamped to the output duration. Landscape defaults stay unchanged.
+
+Before rendering, fetch thumbnails for the selected clip range with `search_media` and `includeThumbs: true`, without distinctAssets. Download a first, middle and late still. Add `--preview first.jpg 1 --preview middle.jpg 15 --preview last.jpg 29` to the build command. Times are seconds relative to the output, so use the matching source thumbnail for each time. The builder applies the job's own filter and ASS at that timestamp and writes low-resolution JPGs beside the bundle in `<out>-previews/`. Look at the first line, longest line and busiest picture. These are layout proxies, so inspect the actual downloaded render too. `render_media` needs no extra approval for an artist-requested FFmpeg edit; paid generation still needs approval under the Mirage skill.
 
 Shorts are 1080x1920. The source picture fills the width, centred and lifted 160 px, over a full-frame copy with `boxblur=30:2,eq=brightness=-0.18`. Lyrics sit bottom-centre at margin 430. Telugu size is 88; other language defaults scale by 88/120 before their existing script multiplier. Colour, outline, shadow, reveal and wrapping are unchanged. This Short format uses FFmpeg and the rendered asset review; `build.mjs` remains the landscape preview builder.
 

@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { createGunzip } from 'node:zlib';
 
 export const BRIDGE_VERSION = '1';
 export const DEFAULT_API_URL = 'https://app.sacredai.studio';
@@ -715,6 +716,36 @@ const validateUploadReceipt = (receipt, expected) => {
   return receipt;
 };
 
+// Inspect tar headers only, never extract a bundle. Bounded streaming keeps large
+// media members out of memory while detecting the root FFmpeg job descriptor.
+export const compositionRenderer = async (filePath) => {
+  const input = fs.createReadStream(filePath);
+  const stream = input.pipe(createGunzip());
+  let header = Buffer.alloc(0), skip = 0, total = 0;
+  try {
+    for await (const chunk of stream) {
+      total += chunk.length;
+      if (total > 2 * 1024 ** 3) fail('invalid_bundle', 'Composition archive exceeds the inspection limit.');
+      let offset = 0;
+      while (offset < chunk.length) {
+        if (skip) { const n = Math.min(skip, chunk.length - offset); skip -= n; offset += n; continue; }
+        const n = Math.min(512 - header.length, chunk.length - offset);
+        header = Buffer.concat([header, chunk.subarray(offset, offset + n)]); offset += n;
+        if (header.length < 512) continue;
+        if (header.every((byte) => byte === 0)) return 'render_composition';
+        const name = header.subarray(0, 100).toString().split('\0')[0].replace(/^\.\//, '');
+        const prefix = header.subarray(345, 500).toString().split('\0')[0];
+        const size = header.subarray(124, 136).toString().replace(/\0/g, '').trim();
+        if (!/^[0-7]+$/.test(size)) fail('invalid_bundle', 'Composition archive has an invalid member size.');
+        if (name === 'ffmpeg-job.json' && !prefix && [0, 48].includes(header[156])) return 'render_media';
+        skip = Math.ceil(parseInt(size, 8) / 512) * 512;
+        header = Buffer.alloc(0);
+      }
+    }
+    return 'render_composition';
+  } finally { stream.destroy(); input.destroy(); }
+};
+
 export const uploadProjectAsset = async (options) => {
   const projectId = normalizeProjectId(options.projectId);
   const purpose = String(options.purpose || '').trim();
@@ -740,6 +771,7 @@ export const uploadProjectAsset = async (options) => {
   const filename = normalizeUploadFilename(filePath);
   const contentType = media ? 'application/octet-stream' : bundle ? (filename.endsWith('.tar.gz') ? 'application/gzip' : null) : MIME_TYPES.get(path.extname(filename).toLowerCase());
   if (!contentType) fail('unsupported_media_type', 'Upload file extension is not supported.');
+  const renderer = bundle ? await compositionRenderer(filePath) : null;
   let fileHash;
   let body;
   if (media) {
@@ -790,7 +822,9 @@ export const uploadProjectAsset = async (options) => {
     }
     return { ok: true, kind: options.receiptKind || 'mirage.bridge.upload', projectId, assetId: data.assetId,
       uploadId: data.uploadId, purpose, filename, contentType, size: body.size, sha256: fileHash,
-      use: { actionKey: 'render_composition', inputField: 'bundle.uploadId', note: 'Preview this version on the project page, read timestamped comments, and render only after human approval.' } };
+      use: { actionKey: renderer, inputField: 'bundle.uploadId', note: renderer === 'render_media'
+        ? 'Pass the complete ffmpeg-job.json with this bundle to render_media. Inspect the downloaded output before request_review.'
+        : 'Preview this version on the project page, read timestamped comments, and render_composition after human approval.' } };
   }
   const replayHeader = response.headers.get('idempotency-replayed');
   if (replayHeader !== 'true' && replayHeader !== 'false') {

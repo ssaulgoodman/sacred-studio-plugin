@@ -87,6 +87,40 @@ class Builder(unittest.TestCase):
         self.assertEqual(rs.frame_filter(), "scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,fps=24,format=yuv420p")
         self.assertEqual(rs.wrap_lines("one two three four five six"), ["one two three four", "five six"])
 
+    def test_audio_fades(self):
+        short = ["--format", "short", "--clip-asset", ASSET, "--clip-start", "83", "--clip-duration", "30"]
+        job, _, _ = self.build_job(short)
+        self.assertEqual(job["args"][job["args"].index("-af") + 1],
+                         "afade=t=in:st=0:d=0.300,afade=t=out:st=29.000:d=1.000")
+        job, _, _ = self.build_job(short + ["--fade-in", "0", "--fade-out", "0"])
+        self.assertNotIn("-af", job["args"])
+        job, _, _ = self.build_job(short + ["--fade-in", "0.5", "--fade-out", "2"])
+        self.assertIn("afade=t=in:st=0:d=0.500,afade=t=out:st=28.000:d=2.000", job["args"])
+        job, _, _ = self.build_job(["--start", "83", "--duration", "30"])
+        self.assertNotIn("-af", job["args"])
+        for bad in ("nan", "-1", "inf"):
+            with self.assertRaises(SystemExit):
+                self.build_job(short + ["--fade-in", bad])
+
+    @unittest.skipUnless(build.shutil.which("ffmpeg"), "local FFmpeg needed for preview smoke")
+    def test_real_proxy_frames_use_output_timestamps(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            run = lambda args: subprocess.run(["ffmpeg", "-y", "-loglevel", "error", *args], check=True)
+            run(["-f", "lavfi", "-i", "color=c=blue:s=320x180", "-frames:v", "1", str(root / "still.jpg")])
+            run(["-f", "lavfi", "-i", "anullsrc", "-t", "3", str(root / "song.wav")])
+            (root / "song.srt").write_text("1\n00:00:00,000 --> 00:00:01,500\nसर्वसिद्धि विनायक\n", encoding="utf-8")
+            argv = ["build_ffmpeg.py", "--format", "short", "--srt", str(root / "song.srt"), "--lang", "san",
+                    "--audio", str(root / "song.wav"), "--out", str(root / "job"), "--clip-asset", ASSET,
+                    "--preview", str(root / "still.jpg"), "1", "--preview", str(root / "still.jpg"), "2", "--tar"]
+            with patch.object(sys, "argv", argv), patch.object(sys, "stdout", io.StringIO()):
+                build.main()
+            frames = sorted((root / "job-previews").glob("*.jpg"))
+            self.assertEqual(len(frames), 2)
+            self.assertNotEqual(frames[0].read_bytes(), frames[1].read_bytes(), "ASS must evaluate at each output timestamp")
+            with tarfile.open(root / "job.tar.gz") as archive:
+                self.assertFalse(any(name.endswith(".jpg") for name in archive.getnames()))
+
     def test_bad_ranges(self):
         for options in (["--clip-start", "-1"], ["--clip-start", "nan"], ["--clip-duration", "0"],
                         ["--clip-duration", "inf"], ["--clip-start", "180"], ["--clip-duration", "1", "--duration", "30"]):

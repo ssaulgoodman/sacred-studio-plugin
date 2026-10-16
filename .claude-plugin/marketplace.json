@@ -12,7 +12,7 @@
       "name": "sacred",
       "source": "./plugins/mirage",
       "description": "Operate Sacred video projects from Claude Code with production actions, craft skills, and project sync.",
-      "version": "0.1.22",
+      "version": "0.1.24",
       "category": "video",
       "homepage": "https://app.sacredai.studio"
     }

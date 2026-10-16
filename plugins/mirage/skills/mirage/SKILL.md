@@ -80,6 +80,8 @@ Use `request_review` for the exact asset versions the human should inspect. Read
 
 Humans review work and leave project, asset, or timestamp comments in the web Project tab at `/?project=<projectId>&step=project`. Read those comments with `read_comments` before continuing the affected work, then reply in the same thread. `get_project_kernel.openReviews[].latestDecision` includes the latest decision note, including requested changes. Web decisions are already recorded; do not relay them again as a new approval.
 
+After `request_review`, call `run_action(wait_for_feedback, { projectId, since: 0, reviewId })` with the returned review ID to wait in this session. Use a saved comment cursor only with the same filters. The action returns new human comments or the review's current `approved` / `changes_requested` decision and note. Review comments are scoped to its exact asset versions; optional `assetIds` intersects that scope. Act on comments and reply with `reply_comment`, including `addressedByAssetId` when a new version answers one. On `changes_requested`, address the note and request review of the new version. On `approved`, continue. Decisions may repeat on retry, so use `approvalId` to recognize one already handled. On `timedOut`, call again with the unchanged cursor or tell the human you are waiting. The default wait is 120 seconds; requests up to 540 seconds are accepted but capped at 240 to stay below Railway's five-minute idle cutoff. If the client has a shorter tool timeout, choose a shorter `timeoutSec`. Disconnecting stops the wait. Web decisions are already recorded; never relay them again as new approvals. Keep `timeoutSec` under your client's tool timeout (Codex defaults to 60 s, so pass 50 there) and call again on `timedOut`. When a new version replaces an earlier one, register it with the same `slot` so the project page shows them as versions of one piece.
+
 `publish_deliverable` records delivery intent and exact assets; it does not send files. Pending publish checkpoints log `checkpoint_would_block` and allow the record in Phase 2. It has no rights checks and refuses `lahari_queue`, which belongs to the existing publish flow. Reuse idempotency keys or comment `clientMsgId` only for retries of the same intent.
 
 Use `render_media` for plain media work such as subtitle burns, clip loops, trim, concat, scale, transparent overlays and audio muxing; use `render_composition` only for designed HyperFrames compositions. Pack the inputs and any `fonts/` as `.tar.gz`, upload with `purpose=composition_bundle`, and pass `{ projectId, bundle: { uploadId }, args, output }` through `run_action`. Args are FFmpeg options without an executable or output path; use bundle-relative files and `subtitles=lyrics.ass:fontsdir=fonts` or `ass=lyrics.ass:fontsdir=fonts`. Pass Sacred `inputs` for lineage. Each call starts compute, so retain `runId` and use `get_runner_status` after approval instead of retrying uncertain work. `render_media.assets` fetches up to 20 available workspace assets through short-lived data-home URLs, records their lineage, and supports `-ss`/`-t`/`-to` before `-i`; omit the bundle for plain trims, keeping subtitles and fonts in a bundle. `search_media` with `filters: { songId, finalVideo: true }` finds a song's finished video through its indexed job metadata. `get_catalogue_song.structure` returns model-written musical sections with start/end seconds, energy and description, or null, to help choose a chorus for a Short.
@@ -90,7 +92,9 @@ Package the composition contents with `tar -czf /tmp/composition.tar.gz -C <comp
 
 Each upload is a version. After uploading the composition folder as `.tar.gz` with `purpose=composition_bundle`, register it with `register_asset` using `kind: "composition"`, `source: { uploadId }`, a stage and a stable slot. Tell the human it is ready to watch on the project page. Read `read_comments`, including `tStartSec` and `tEndSec`, edit the composition, and upload a new bundle. Register that new asset with `derivedFrom` pointing to the previous bundle version. Use the same stage and slot for its rendered MP4 so both Live preview and Rendered appear together. Only call `render_composition` after the human approves rendering that version.
 
-Discover and describe `render_composition` on the `kernel` surface, then call `run_action` with `{ projectId, bundle: { uploadId }, stage: "render", slot: "edit:main", inputs: [{ assetId: "<clip-id>", role: "source_clip" }] }`. List all clips, audio, and other Sacred assets used by the composition. Sacred adds the bundle to lineage automatically. This starts billable Modal compute through `run_action`, not `start_job`. Each call starts a new run, so keep the returned `runId` and poll `get_runner_status` deliberately instead of retrying the render. The output appears on the project's Project tab. Optional `output.fps` sets render frame rate; even `width` and `height` scale the MP4 after rendering. Omit dimensions to preserve the composition size.
+Discover and describe `render_composition` on the `kernel` surface, then call `run_action` with `{ projectId, bundle: { uploadId }, stage: "render", slot: "edit:main", inputs: [{ assetId: "<clip-id>", role: "source_clip" }] }`. List all clips, audio, and other Sacred assets used by the composition. Sacred adds the bundle to lineage automatically. This starts billable Modal compute through `run_action`, not `start_job`. Each call starts a new run, so keep the returned `runId` and poll `get_runner_status` deliberately instead of retrying the render. The output appears on the project's Project tab. A succeeded `get_runner_status` includes a 15-minute `downloadUrl`. Download the output and look at a few actual frames before `request_review`. For other stored assets use `search_library` with `includeDownloadUrls: true`. Optional `output.fps` sets render frame rate; even `width` and `height` scale the MP4 after rendering. Omit dimensions to preserve the composition size.
+
+For plain FFmpeg jobs, a bundle containing `ffmpeg-job.json` goes to `render_media`, including the job's `assets`, `args` and `output`. An artist request to make the edit authorizes this small renderer compute; no extra render approval is needed. Paid image, video or audio generation still follows Paid Work below. Inspect local proxy frames first, then download the succeeded output and inspect actual frames before `request_review`.
 
 ## Safe Edit Rule
 
@@ -114,7 +118,7 @@ If a Sacred call fails because authentication is missing, expired, or revoked, t
 ## Local Sync Tokens
 
 
-For task-driven sync or upload, call `mint_cli_token`, resolve `scripts/bridge.mjs` next to this loaded `SKILL.md` to an absolute path, and invoke that absolute sibling path. Start the process with `--token-stdin`, write the short-lived token only to the child process stdin, then close stdin. Never place the token in argv, a shell pipe/command string, environment variables, files, logs, errors, or lock metadata.
+For task-driven sync or upload, call `mint_cli_token`, resolve `scripts/bridge.mjs` next to this loaded `SKILL.md` to an absolute path, and invoke that absolute sibling path. Start the process with `--token-stdin`, write the short-lived token only to the child process stdin, then close stdin. Never place the token in argv, environment variables, files, logs, errors, or lock metadata. In Claude Code, a quoted heredoc in the Bash tool is the sanctioned stdin transport. Do not echo it, enable shell tracing, or include it in a saved script.
 
 Commands:
 
@@ -122,6 +126,16 @@ Commands:
 node "/absolute/path/to/loaded/skills/mirage/scripts/bridge.mjs" sync --project <id> --profile <full|state|payloads> --token-stdin
 node "/absolute/path/to/loaded/skills/mirage/scripts/bridge.mjs" upload --project <id> --purpose <purpose> --file <path> [--entity <id>] [--new-upload] --token-stdin
 ```
+
+Claude Code example, with the token only in the heredoc body:
+
+```bash
+node "/absolute/path/to/loaded/skills/mirage/scripts/bridge.mjs" upload --project <id> --purpose composition_bundle --file <bundle.tar.gz> --token-stdin <<'EOF'
+<token from mint_cli_token.token>
+EOF
+```
+
+The quoted delimiter prevents shell expansion. The token reaches child stdin, not argv or env. Signed asset download URLs are temporary read links, separate from this bearer token rule.
 
 Use the full profile for editable drafts/config, `state` for state snapshots, and `payloads` for prompt receipts. `--new-upload` means the artist deliberately wants another asset from identical bytes; ordinary retries omit it and reuse deterministic upload identity. Add `--base-url <url>` only for an explicitly configured non-production Sacred server. The standalone `mirage sync` CLI remains the fallback when the plugin helper is unavailable; do not install or log into it as routine plugin preflight.
 
