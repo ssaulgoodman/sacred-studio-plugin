@@ -18,30 +18,29 @@ python3 build_ffmpeg.py --srt <song>_<lang>.srt --lang kan --clip <loop>.mp4 --a
 Optional on both: `--start 27 --duration 33` for an excerpt, `--position right-third|left-third|bottom-third|bottom-center`, `--size`, `--color`, `--offset-x`, `--offset-y` (positive raises the text). Each writes `composition.json` recording every setting and source.
 
 - Upload the preview `.tar.gz` with purpose `composition_bundle` so people can watch and comment before anything renders.
-- Render with `render_media`, uploading the job `.tar.gz` (clip, audio, fonts, `subtitles.ass`) and passing the `args` from its `ffmpeg-job.json`.
+- Render with `render` and a document whose text track uses `style: "catalogue"`; Sacred builds the subtitles, fonts and FFmpeg job.
 - Never render catalogue videos through HyperFrames. A 4.5 minute song takes about 37 minutes that way and about 12 seconds through FFmpeg.
 
 `render_style.py` keeps Echo's rendering logic from `echo-live-wallpapers cloud/render_style.py`, commit `1f444ed`, with frame dimensions and placement presets now parameterized using the original defaults. Echo's copy needs the same parameter change. Keep future look changes in step there and in `build.mjs`. `pip install uharfbuzz` lets the reveal measure each line; without it the reveal sweeps the whole placement box.
 
 ## Cut a Short from a finished video
 
-Read `get_catalogue_song` and choose a section from `structure.sections`, preferably a chorus. Structure is labelled model-written and may be null, so confirm the chosen range against the song. Use `search_media` with `filters: { songId, finalVideo: true }` and `kinds: ["video_window"]`, and `distinctAssets: true` to find its finished music video. Choose its `assetId`, including a matching entry in `sources` when several sources share a moment, and check `metadata.songAligned` before treating song timestamps as video timestamps. If false or absent, inspect the video timing and supply the correct `--clip-start` separately from `--start`.
+`open { song }` and choose a section from `structure.sections`, preferably a chorus. Structure is model-written and may be null, so confirm the range against the song. `find` with `kinds: ["video_window"]` and `filters: { songId, finalVideo: true }` gives its finished music video; check `metadata.songAligned` before treating song times as video times.
 
-Use the original song language and script unless the artist asks otherwise. The catalogue also offers Sanskrit, Kannada, Telugu, Tamil and Malayalam scripts. Download the trusted original-language SRT and master audio from `get_catalogue_song`. Build into an empty output folder:
+Use the original language and script unless the artist asks otherwise; the song's subtitles handles cover Sanskrit, Kannada, Telugu, Tamil and Malayalam. Write the document:
 
-```bash
-python3 build_ffmpeg.py --format short --srt song_san.srt --lang san \
-  --clip-asset <finished-video-assetId> --clip-start 83 --clip-duration 30 \
-  --audio song.wav --out ./short-job --tar
+```json
+{
+  "format": { "width": 1080, "height": 1920, "fps": 30, "duration": 30 },
+  "video": [{ "asset": "<finished-video-assetId>", "in": 83, "out": 113, "at": 0, "fit": "contain-blur" }],
+  "text": [{ "subtitles": "catalogue:<songId>:san", "from": 83, "to": 113, "style": "catalogue", "position": { "bottom": 430 } }],
+  "audio": [{ "asset": "<master-audio-assetId>", "in": 83, "out": 113, "fadeIn": 0.3, "fadeOut": 1.0 }]
+}
 ```
 
-`--clip-start` and `--clip-duration` default the audio/SRT range too; `--start` and `--duration` can override that range. The job seeks the fetched video before decoding, without looping or copying it into the bundle. The bundle carries only `subtitles.ass`, the script font, the audio range and job/settings JSON. Upload `short-job.tar.gz` with `purpose=composition_bundle`, then call `render_media` with `{ projectId, bundle: { uploadId }, ...ffmpegJob }`, where `ffmpegJob` is the complete `ffmpeg-job.json`, including `assets`, `args` and `output`. Pass stage `shorts`, slot `short:<theme>`, and label `<Song> Short (m:ss to m:ss)`. Retain the `runId`, read `get_runner_status`, download its 15-minute `downloadUrl` and inspect a few actual frames before `request_review` for the output `assetId`.
+`text.from`/`to` and `audio.in`/`out` are song times; `video.in`/`out` are times in the video. `render` it with stage `shorts`, slot `short:<theme>` and label `<Song> Short (m:ss to m:ss)`. It waits for the file; `fetch` it, inspect a few frames, then `ask` for review of the output asset. A revision edits the document (`open { job }` returns it) and renders again with the same slot. A larger `text.position.bottom` raises the lyrics. An artist-requested FFmpeg render needs no extra approval.
 
-Short audio defaults to a 0.3 s fade in and 1.0 s fade out. Set `--fade-in 0 --fade-out 0` to disable them or supply other durations. Fades are clamped to the output duration. Landscape defaults stay unchanged.
-
-Before rendering, fetch thumbnails for the selected clip range with `search_media` and `includeThumbs: true`, without distinctAssets. Download a first, middle and late still. Add `--preview first.jpg 1 --preview middle.jpg 15 --preview last.jpg 29` to the build command. Times are seconds relative to the output, so use the matching source thumbnail for each time. The builder applies the job's own filter and ASS at that timestamp and writes low-resolution JPGs beside the bundle in `<out>-previews/`. Look at the first line, longest line and busiest picture. These are layout proxies, so inspect the actual downloaded render too. `render_media` needs no extra approval for an artist-requested FFmpeg edit; paid generation still needs approval under the Mirage skill.
-
-Shorts are 1080x1920. The source picture fills the width, centred and lifted 160 px, over a full-frame copy with `boxblur=30:2,eq=brightness=-0.18`. Lyrics sit bottom-centre at margin 430. Telugu size is 88; other language defaults scale by 88/120 before their existing script multiplier. Colour, outline, shadow, reveal and wrapping are unchanged. This Short format uses FFmpeg and the rendered asset review; `build.mjs` remains the landscape preview builder.
+Shorts are 1080x1920. The source picture fills the width, centred and lifted 160 px, over a full-frame copy with `boxblur=30:2,eq=brightness=-0.18`. Lyrics sit bottom-centre at `bottom: 430`. Telugu size is 88; other language defaults scale by 88/120 before their existing script multiplier. Colour, outline, shadow, reveal and wrapping are unchanged. This Short format uses FFmpeg and the rendered asset review; `build.mjs` remains the landscape preview builder.
 
 ## The look, and why
 

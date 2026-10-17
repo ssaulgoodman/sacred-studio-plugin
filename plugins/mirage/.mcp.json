@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "mirage": {
-      "type": "http",
-      "url": "https://app.sacredai.studio/mcp",
-      "note": "Authenticate with OAuth: codex mcp login mirage. Bearer-token env fallback is still available from /connect for clients without MCP OAuth."
-    }
-  }
-}

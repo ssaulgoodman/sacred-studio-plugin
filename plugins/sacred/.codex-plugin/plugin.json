@@ -1,6 +1,6 @@
 {
-  "name": "mirage",
-  "version": "0.1.26",
+  "name": "sacred",
+  "version": "0.1.28",
   "description": "Operate Sacred video projects from Codex with project sync, production actions, and craft skills.",
   "author": {
     "name": "Mothership",
@@ -11,7 +11,7 @@
   "repository": "https://github.com/ssaulgoodman/sacred-studio-plugin",
   "license": "UNLICENSED",
   "keywords": [
-    "mirage",
+    "sacred",
     "video",
     "ai-video",
     "storyboards",

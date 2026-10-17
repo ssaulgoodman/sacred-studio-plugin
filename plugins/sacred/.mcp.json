@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "sacred": {
+      "type": "http",
+      "url": "https://app.sacredai.studio/mcp",
+      "note": "Sign in with OAuth: in Claude Code run /mcp and choose Sacred; in Codex run codex mcp login sacred."
+    }
+  }
+}

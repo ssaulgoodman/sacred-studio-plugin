@@ -864,7 +864,25 @@ export const uploadProjectAsset = async (options) => {
   };
 };
 
-// Both adapters use the credential store written by `mirage login`. Account
+// Client settings prefer the Sacred names; old launch scripts keep working.
+export const cliEnv = (name) => process.env[`SACRED_${name}`] || process.env[`MIRAGE_${name}`];
+const configuredAuthFile = () => process.env.SACRED_AUTH_FILE
+  || (process.env.SACRED_AUTH_DIR && path.join(process.env.SACRED_AUTH_DIR, 'auth.json'))
+  || process.env.MIRAGE_AUTH_FILE
+  || (process.env.MIRAGE_AUTH_DIR && path.join(process.env.MIRAGE_AUTH_DIR, 'auth.json'));
+export const authFilePath = () => configuredAuthFile() || path.join(os.homedir(), '.sacred', 'auth.json');
+export const legacyAuthFilePath = () => path.join(os.homedir(), '.mirage', 'auth.json');
+export const usesDefaultAuthFile = (file) => !configuredAuthFile() && path.resolve(file) === path.resolve(authFilePath());
+export const storedAuthFilePath = (file = authFilePath()) => usesDefaultAuthFile(file) && !fs.existsSync(file)
+  ? legacyAuthFilePath() : file;
+export const removeAuth = () => {
+  const file = authFilePath();
+  // Clear both default stores so logout cannot resurrect the legacy login.
+  const files = usesDefaultAuthFile(file) ? [legacyAuthFilePath(), file] : [file];
+  for (const candidate of files) fs.rmSync(candidate, { force: true });
+};
+
+// Both adapters use the credential store written by `sacred login`. Account
 // and minted project credentials remain in memory and Authorization headers.
 const secrets = new Set();
 const redact = (value) => {
@@ -886,15 +904,13 @@ export const resolveBridgeAuth = async (options) => {
   if (options.tokenStdin) {
     const token = await readTokenFromStdin();
     secrets.add(token);
-    return { token, baseUrl: normalizeBaseUrl(options.baseUrl || process.env.MIRAGE_API_URL) };
+    return { token, baseUrl: normalizeBaseUrl(options.baseUrl || cliEnv('API_URL')) };
   }
-  const authFile = process.env.MIRAGE_AUTH_FILE
-    || path.join(process.env.MIRAGE_AUTH_DIR || path.join(os.homedir(), '.mirage'), 'auth.json');
-  const auth = readJson(authFile, null);
-  if (!auth?.mcpToken) fail('auth_missing', 'Run mirage login, or use --token-stdin with a short-lived project token.', undefined, 2);
+  const auth = readJson(storedAuthFilePath(), null);
+  if (!auth?.mcpToken) fail('auth_missing', 'Run sacred login, or use --token-stdin with a short-lived project token.', undefined, 2);
   const bearer = normalizeToken(auth.mcpToken);
   secrets.add(bearer);
-  const baseUrl = normalizeBaseUrl(options.baseUrl || process.env.MIRAGE_API_URL || auth.apiUrl);
+  const baseUrl = normalizeBaseUrl(options.baseUrl || cliEnv('API_URL') || auth.apiUrl);
   if (auth.apiUrl && normalizeBaseUrl(auth.apiUrl) !== baseUrl) {
     fail('auth_origin_mismatch', 'The saved login belongs to another server. Log in to this server or use --token-stdin.', undefined, 2);
   }

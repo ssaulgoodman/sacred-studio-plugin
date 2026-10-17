@@ -1,14 +1,14 @@
 {
-  "name": "mirage",
+  "name": "sacred",
   "interface": {
     "displayName": "Sacred"
   },
   "plugins": [
     {
-      "name": "mirage",
+      "name": "sacred",
       "source": {
         "source": "local",
-        "path": "./plugins/mirage"
+        "path": "./plugins/sacred"
       },
       "policy": {
         "installation": "AVAILABLE",
