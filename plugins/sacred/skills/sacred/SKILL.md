@@ -12,10 +12,10 @@ Sacred holds projects, assets, lineage, reviews and spend. In Claude Code use `m
 | Verb | Use it to |
 |---|---|
 | `find` | Search lyrics, footage, assets, projects or models (`in: "models"`). |
-| `open` | Read a project, song, asset or job. |
+| `open` | Read a project, song, asset or job. A new project is `save { project: { title } }`. |
 | `fetch` | Download files for inspection. |
 | `save` | Register a file or URL as an asset with lineage. |
-| `render` | Render a document (below) to a file. |
+| `render` | Render a document, FFmpeg spec or HyperFrames composition. |
 | `make` | Generate or transform with a catalog model. |
 | `batch` | Quote and submit up to 50 make/render items. |
 | `ask` | Request human review or comment. |
@@ -26,7 +26,12 @@ Sacred holds projects, assets, lineage, reviews and spend. In Claude Code use `m
 
 Use `describe` for unfamiliar inputs.
 
+Render template bundles with `composition: { bundle: { uploadId }, assets?, output? }` and `template: { name, version }`; describe `render` for an example.
+
+`find { in: "library", filters: { tags: ["taste"] } }` lists the taste library; use each entry's note and provenance to make work like it, and curate with `save { projectId, source: { assetId }, library: { label, tags, note } }`, tagging every entry `taste` plus one of `taste:template`, `taste:style`, `taste:technique`, `taste:reference`, `taste:winner`, and `template:<name>` when it demonstrates a template.
+
 After the human posts a piece, record it with `publish`; never claim it was posted without the URL.
+Read workspace post performance and style/format totals with `open { analytics: true, projectId, days: 28 }`; window views and lifetime metrics stay separate.
 
 ## The document
 
