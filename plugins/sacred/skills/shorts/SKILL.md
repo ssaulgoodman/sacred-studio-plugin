@@ -19,11 +19,12 @@ Read the template's TEMPLATE.md before using it. If the human names a template f
 
 ## From a song to a Short
 
+0. **Project:** work in a project of the workspace that holds the catalogue (for Lahari songs, the Lahari workspace). `save { project }` creates in your personal workspace, where catalogue songs do not open; start a Lahari project with `pack { actionKey: "start_project_from" }` from that workspace's library entries (the template and style you will use) and an existing Lahari project ID.
 1. **Song:** `open { song }`. Use the original language and script (`originalLanguage`; the subtitles handles cover san, kan, tel, tam, mal).
 2. **Section:** pick 20 to 40 seconds, usually the opening refrain or a chorus. `structure.sections` helps when present; confirm against the lyric times. For `festival-sting`, start 2 to 3 seconds before the first sung line so the greeting lands on the instrumental.
 3. **Lines and meanings:** `find { kinds: ["lyric_line"], filters: { songId } }` returns every line with its times, text and model-written English meaning. Write them to `lines.json` as `[{ start, end, text, meaning }]` in song time.
 4. **Base and audio.** The base is what sits under the type.
-   - **Icon (default, `--base icon`):** a deity loop held full frame. `open { song }` lists `clipCandidates` for the song's deity; download one from its signed URL. This is the look the channel's audience rewards (see the library's "Icon as hero" entry). Set `--focus-x` so the deity's face is in the 9:16 crop, and check it in a snapshot.
+   - **Icon (default, `--base icon`):** a deity loop held full frame. `open { song }` returns the song's `assignedClip` or `clipCandidates` for its deity; download one from its signed URL. This is the look the channel's audience rewards (see the library's "Icon as hero" entry). Set `--focus-x` so the deity's face is in the 9:16 crop, and check it in a snapshot. `--focus-x` places the crop's left edge: for a 16:9 loop with the face at fraction `f` across the frame, use `(f - 0.16) / 0.68` (a face at 0.27 gives 0.16; centred gives 0.5).
    - **Footage (`--base footage`):** the song's finished video (`find` with `kinds: ["video_window"]` and `filters: { songId, finalVideo: true }`; check `metadata.songAligned`), played song-aligned.
    The master audio comes from `open { song }`. Download with `fetch` or the signed URL.
 5. **Build:** from this folder,
@@ -33,7 +34,7 @@ Read the template's TEMPLATE.md before using it. If the human names a template f
    ```
    Optional: `--focus-x 0.4` moves the 9:16 crop toward the subject (0 left, 1 right); `--clip-offset` when the footage is not song-aligned. Beats come from `beats.py` (librosa); without it the template uses a steady grid.
 6. **Check before rendering:** `npx hyperframes snapshot --at 1,4,12,25` in the output folder and look at the frames: text legible, not over a deity's face, the crop holds the subject.
-7. **Render:** `save` the `.tar.gz` with `kind: "composition_bundle"`, then `render { composition: { bundle: { uploadId } }, template: { name, version: 1 }, idempotencyKey }`. Several Shorts are one `batch` of render items; `wait` on the returned IDs. A 30 second Short renders in about a minute.
+7. **Render:** `save` the `.tar.gz` with `kind: "composition_bundle"`, then `render { composition: { bundle: { uploadId } }, template: { name, version: 1 }, idempotencyKey }`. Several Shorts are one `batch` of render items; `wait` on the returned IDs. A 30 second Short takes three to four minutes to render, so start the render before talking it through.
 8. **Review:** `fetch` each output, look at a few frames, then `ask` once for all of them.
 
 ## Rules

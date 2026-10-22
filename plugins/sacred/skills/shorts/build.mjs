@@ -183,8 +183,8 @@ html, body { margin: 0; width: ${W}px; height: ${H}px; overflow: hidden; backgro
 .tr { margin-top: ${calm ? 14 : 20}px; font: 500 ${calm ? 26 : 29}px/1.3 "Instrument Sans"; letter-spacing: 0.08em; color: rgba(251,247,239,0.72); opacity: 0; }
 .en { margin-top: ${calm ? 34 : 14}px; font: italic ${calm ? 84 : icon ? 42 : 48}px/${calm ? 1.08 : 1.15} "Instrument Serif"; color: #f1dfbd; ${calm ? 'max-width: 900px;' : 'max-width: 820px;'} }
 .ew { display: inline-block; opacity: 0; }
-#greet { position: absolute; left: 60px; right: 60px; top: 0; bottom: 120px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
-.greet-script { font-family: "${font[0]}"; font-size: 168px; line-height: 1.15; color: #fbf7ef; }
+#greet { position: absolute; left: 60px; right: 60px; top: 0; bottom: ${icon ? 330 : 120}px; display: flex; flex-direction: column; justify-content: ${icon ? 'flex-end' : 'center'}; align-items: center; text-align: center; }
+.greet-script { font-family: "${font[0]}"; font-size: ${icon ? 132 : 168}px; line-height: 1.15; color: #fbf7ef; }
 .gw { display: inline-block; opacity: 0; }
 .greet-en { margin-top: 26px; font: italic 64px/1 "Instrument Serif"; color: #f1dfbd; opacity: 0; }
 `;
