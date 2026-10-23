@@ -172,6 +172,7 @@ if (sting) {
 // Montage motion graphics: a gold flash on every cut, gold rules framing the band, embers
 // rising like diya sparks, warm light drifting across, and a closing greeting card.
 // All seek-safe: fixed values from a seeded generator, finite tweens on the one timeline.
+// The closing card all but covers the band, so its greeting never sits over a deity in the last shot.
 if (montage) {
   html.push('<div id="leak-a" class="leak"></div><div id="leak-b" class="leak"></div>');
   tl.push(`tl.fromTo("#leak-a", { x: -260, opacity: 0.28 }, { x: 220, opacity: 0.42, duration: ${n(D)}, ease: "none" }, 0);`);
@@ -263,7 +264,7 @@ ${montage ? `#title { top: 300px; text-align: center; font: italic 52px/1.1 "Ins
 #rule-top { top: ${BAND_TOP - 3}px; } #rule-bottom { top: ${BAND_TOP + BAND_H}px; }
 .ember { position: absolute; top: 0; border-radius: 50%; background: #ffd98a; box-shadow: 0 0 10px 3px rgba(255,170,70,0.6); opacity: 0; }
 #cutflash { position: absolute; inset: 0; background: radial-gradient(circle at 50% 45%, rgba(255,246,222,0.95), rgba(255,206,130,0.7) 60%, rgba(255,170,90,0.5)); mix-blend-mode: screen; opacity: 0; pointer-events: none; }
-#endcard { position: absolute; left: 0; right: 0; top: ${BAND_TOP}px; height: ${BAND_H}px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(ellipse at center, rgba(12,8,4,0.72), rgba(12,8,4,0.35)); opacity: 0; }
+#endcard { position: absolute; left: 0; right: 0; top: ${BAND_TOP}px; height: ${BAND_H}px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(12,8,4,0.9); opacity: 0; }
 .end-script { font-family: "${font[0]}"; font-size: 150px; line-height: 1.15; color: #ffe8b8; text-shadow: 0 0 40px rgba(255,180,80,0.6); }
 .end-en { margin-top: 18px; font: italic 60px/1 "Instrument Serif"; color: #f3dca8; }
 ` : ''}#greet { position: absolute; left: 60px; right: 60px; top: 0; bottom: ${icon ? 330 : 120}px; display: flex; flex-direction: column; justify-content: ${icon ? 'flex-end' : 'center'}; align-items: center; text-align: center; }
