@@ -18,16 +18,17 @@ A Short is one strong section of a song (20 to 40 seconds) over its finished foo
 
 Read the template's TEMPLATE.md before using it. If the human names a template from the Sacred library page, use that name exactly.
 
-## Fast path: a festival montage (about 10 calls)
+## Fast path: a festival montage (about 16 calls)
 
-1. Project: an existing Lahari project, or `pack start_project_from` (see step 0 below).
+1. **Projects:** find the song's own project with `find { in: "projects", query: "<song name>" }`; the finished Short ends up there (step 9). Composition bundles can't be uploaded to catalogue song projects yet, so build and render in the festival's working project. Use `find { in: "projects", query: "Diwali Shorts" }` and reuse it; create it with `pack start_project_from` (see step 0 below) only if it doesn't exist.
 2. `open { song }` for `masterAudio` and the song ID.
 3. `find { kinds: ["lyric_line"], filters: { songId }, limit: 50 }`: write the original-script lines with their times and meanings to `lines.json`.
-4. `find { query: "diyas, oil lamps, puja, the deity", kinds: ["video_window"], filters: { songId, finalVideo: true }, limit: 12 }`: its `tStart` values become `--moments`, and its `assetId` is the finished video.
-5. `fetch` that asset and the master audio.
-6. `node build.mjs --template festival-montage --clip finished.mp4 --moments 224,232,96 ...` (section 25 to 35 s from just before the first line).
-7. `npx hyperframes check` in the output folder (it must pass; the cloud renderer runs it too), then snapshot four or five times and look.
-8. `save` the `.tar.gz` and `render` it (about 4 minutes), then `fetch`, look, and `ask`.
+4. **Shots from the whole catalogue:** `find { query: "rows of glowing diyas, oil lamps, the goddess, festival lights", kinds: ["video_window"], filters: { finalVideo: true }, limit: 24 }`, with no song filter. Keep about 16 moments from at least five different videos, best first, and include two or three from the song's own video.
+5. `fetch` each distinct video for its signed URL, then write `shots.json` as `[{ "src": url, "at": tStart, "end": tEnd }]`. The URLs last 15 minutes, so build straight away.
+6. `node build.mjs --template festival-montage --shots shots.json --lines lines.json --audio master.wav --start ... --duration 30 --greeting ... --greeting-en ... --out short --tar`.
+7. `npx hyperframes check` in the output folder (it must pass; the cloud renderer runs it too), then snapshot five times and look.
+8. `save` the `.tar.gz` into the festival project, then `render` it with `wait: false`. A render takes 2 to 4 minutes, so call `wait` until it finishes, then `fetch` the output and look at it.
+9. File it in the song's project: `save { projectId: <song project>, source: { assetId: <output> }, kind: "video", stage: "shorts", slot: "diwali:festival-montage", label }`. Then `ask` for review there.
 
 Skip analytics, library browsing and `describe` unless asked; this path needs none of them.
 

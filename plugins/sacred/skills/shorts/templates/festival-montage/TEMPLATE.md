@@ -1,24 +1,23 @@
 ---
 name: festival-montage
-version: 1
+version: 2
 format: Short 9:16, 25 to 40 s
 ---
 
 # Festival montage
 
-For festivals and occasions when the song has a finished video. It is the festival sting with energy:
+For festivals and occasions. It is the festival sting with energy:
 
 - The greeting lands word by word on the beat over a blurred shot, then three flash frames.
-- The rest cuts between the strongest shots of the song's whole finished video: a new shot every bar (four beats), and a gold flash on every cut.
-- The 16:9 shots sit as a full-width band over a blurred, darkened copy of themselves, so nothing important is cropped away. Gold rules draw in to frame the band.
-- Lyrics rise word by word beneath the band, with the reading and the English meaning; the title sits above.
+- The rest cuts on every bar (four beats) between the strongest moments from **anywhere in the catalogue's finished videos**, found by meaning (diyas, lamps, the deity, festival lights), with a gold flash on every cut. The song's audio and lyrics stay its own.
+- Every shot fills the 9:16 frame. The builder aims each crop at the sharpest part of the picture, usually the face or the idol. Nothing is zoomed; each shot keeps its own motion.
+- Lyrics rise word by word low in the frame, with the reading and the English meaning. The title sits at the top over a short gold rule.
 - Embers drift up and warm light moves slowly across.
-- The last two seconds are a closing card with the greeting.
-- No zooms or camera moves on the footage; each shot keeps its own motion.
+- The last two seconds are a full-frame closing card with the greeting.
 
 - **Inputs:**
-  - `--clip`: the song's whole finished video.
-  - `--moments`: the video times to cut to first, best first. Take them from `find` with the song's `finalVideo` and a meaning query such as "diyas, oil lamps, puja, the deity".
+  - `--shots shots.json`: `[{ "src": "<signed URL from fetch>", "at": tStart, "end": tEnd }]`, best first, from at least five different videos. The builder seeks into the URLs; nothing needs downloading.
+  - `--clip`: optional. The song's own finished video, if you want its scenes as well.
   - `--greeting` and `--greeting-en`.
 - **Section:** start 2 to 3 s before the first sung line, and run 25 to 35 s. Ending just after a refrain line lands best.
 - **Greetings:** as in festival-sting.

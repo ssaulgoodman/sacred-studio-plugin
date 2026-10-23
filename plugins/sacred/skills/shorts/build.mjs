@@ -9,19 +9,18 @@
 //   [--focus-x 0.5]    horizontal focus of the 16:9 footage in the 9:16 frame, 0 left to 1 right
 //   festival-montage: --clip is the song's whole finished video; it cuts between its shots on the beat.
 //   [--moments 212,48,200]  video times to cut to first (from find with the song's finalVideo), best first
+//   [--shots shots.json]    [{ "src": "file or signed URL", "at": 212, "end": 220 }] moments from any finished video, best first
 //
 // lines.json: [{ "start": 29.76, "end": 32.11, "text": "ಶುಕ್ರವಾರ ಬಂದಾಗ", "meaning": "When Friday comes" }]
 // Times are song times. TEMPLATE.md in each templates/<name> folder says what the template is for.
 import { execFileSync, spawnSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const W = 1080, H = 1920;
-// festival-montage: the footage band (3:2, full width) and where it sits.
-const BAND_TOP = 470, BAND_H = 720;
 const TEMPLATES = ['kinetic-hook', 'festival-sting', 'meaning-card', 'festival-montage'];
 const SCRIPT_FONTS = {
   kan: ['Tiro Kannada', 'TiroKannada-Regular.ttf', 'kn'],
@@ -33,9 +32,10 @@ const SCRIPT_FONTS = {
 };
 
 const { values: a } = parseArgs({ options: Object.fromEntries(
-  ['template', 'lines', 'lang', 'clip', 'audio', 'start', 'duration', 'title', 'out', 'greeting', 'greeting-en', 'clip-offset', 'focus-x', 'base', 'moments']
+  ['template', 'lines', 'lang', 'clip', 'audio', 'start', 'duration', 'title', 'out', 'greeting', 'greeting-en', 'clip-offset', 'focus-x', 'base', 'moments', 'shots']
     .map((k) => [k, { type: 'string' }]).concat([['tar', { type: 'boolean' }]])) });
-for (const k of ['template', 'lines', 'lang', 'clip', 'audio', 'start', 'duration', 'out']) if (!a[k]) throw new Error(`--${k} is required`);
+for (const k of ['template', 'lines', 'lang', 'audio', 'start', 'duration', 'out']) if (!a[k]) throw new Error(`--${k} is required`);
+if (!a.clip && !(a.template === 'festival-montage' && a.shots)) throw new Error('--clip is required (festival-montage also accepts --shots)');
 if (!TEMPLATES.includes(a.template)) throw new Error(`Unknown template ${a.template}; one of ${TEMPLATES.join(', ')}`);
 const font = SCRIPT_FONTS[a.lang];
 if (!font) throw new Error(`Unknown language ${a.lang}; one of ${Object.keys(SCRIPT_FONTS).join(', ')}`);
@@ -107,36 +107,73 @@ const ff = (...args) => execFileSync('ffmpeg', ['-y', '-loglevel', 'error', ...a
 const cropX = `(iw-ih*9/16)*${focusX.toFixed(3)}`;
 const cuts = [];
 if (montage) {
-  // Montage: the opener holds one shot, then a new shot every bar (four beats), every two
-  // beats once the song is in full flow. Shots come from the whole finished video: the
-  // given moments first, then the rest in story order. Each shot keeps its own motion.
-  const scenes = spawnSync('ffmpeg', ['-hide_banner', '-i', a.clip, '-vf', "scale=320:-1,select='gt(scene,0.25)',showinfo", '-an', '-f', 'null', '-'], { encoding: 'utf8', maxBuffer: 1 << 26 }).stderr;
-  const total = Number(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', a.clip], { encoding: 'utf8' }));
-  const bounds = [0, ...[...scenes.matchAll(/pts_time:([0-9.]+)/g)].map((m) => Number(m[1])), total];
-  const shots = bounds.slice(0, -1).map((s, i) => ({ s: s + 0.15, e: bounds[i + 1] - 0.1 })).filter((x) => x.e - x.s >= 1.2);
-  const wanted = (a.moments || '').split(',').map(Number).filter((t) => Number.isFinite(t));
-  const order = [...wanted.map((t) => shots.find((x) => t >= x.s - 0.3 && t < x.e)).filter(Boolean), ...shots];
-  const queue = [...new Set(order)];
+  // Montage: the opener holds one shot, then a new shot every bar (four beats). Shots come
+  // from --shots (catalogue-wide moments found by meaning: any finished video, local file or
+  // signed URL) and then from --clip's own scenes. Every shot fills the 9:16 frame, its crop
+  // aimed at the sharpest part of the picture (usually the face or the idol). Each shot keeps
+  // its own motion; nothing is zoomed.
+  const pool = [];
+  if (a.shots) for (const x of JSON.parse(readFileSync(a.shots, 'utf8'))) pool.push({ src: x.src, s: Number(x.at) + 0.4, e: Number(x.end ?? Number(x.at) + 8) - 0.2 });
+  if (a.clip) {
+    const scenes = spawnSync('ffmpeg', ['-hide_banner', '-i', a.clip, '-vf', "scale=320:-1,select='gt(scene,0.25)',showinfo", '-an', '-f', 'null', '-'], { encoding: 'utf8', maxBuffer: 1 << 26 }).stderr;
+    const total = Number(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', a.clip], { encoding: 'utf8' }));
+    const bounds = [0, ...[...scenes.matchAll(/pts_time:([0-9.]+)/g)].map((m) => Number(m[1])), total];
+    const scenesList = bounds.slice(0, -1).map((x, i) => ({ src: a.clip, s: x + 0.15, e: bounds[i + 1] - 0.1 })).filter((x) => x.e - x.s >= 1.2);
+    const wanted = (a.moments || '').split(',').map(Number).filter((t) => Number.isFinite(t));
+    pool.push(...new Set([...wanted.map((t) => scenesList.find((x) => t >= x.s - 0.3 && t < x.e)).filter(Boolean), ...scenesList]));
+  }
+  if (!pool.length) throw new Error('festival-montage needs --shots or --clip');
+  // Never two cuts in a row from the same video when another is available.
+  const queue = [];
+  const left = [...pool];
+  while (left.length) { const k = left.findIndex((x) => x.src !== queue.at(-1)?.src); queue.push(...left.splice(k < 0 ? 0 : k, 1)); }
   const grid = beats.map((b) => b.t).filter((t) => t > stingEnd + 0.4 && t < D - 0.6);
-  const every = (i) => (grid[i] - stingEnd > (D - stingEnd) * 0.45 ? 2 : 4);
   const marks = [0, stingEnd];
-  for (let i = 0; i < grid.length; i += every(i)) if (grid[i] - marks.at(-1) >= 0.9) marks.push(grid[i]);
+  for (let i = 0; i < grid.length; i += 4) if (grid[i] - marks.at(-1) >= 0.9) marks.push(grid[i]);
   if (marks.length < 4) for (let t = stingEnd + 2; t < D - 0.8; t += 2) marks.push(t);
   marks.push(D);
   let q = 0;
   for (let i = 0; i < marks.length - 1; i++) {
     const len = marks[i + 1] - marks[i];
     let shot = null;
-    for (let k = 0; k < queue.length && !shot; k++) { const c = queue[(q + k) % queue.length]; if (c.e - c.s >= len) { shot = c; q = (q + k + 1) % queue.length; } }
+    for (let k = 0; k < queue.length && !shot; k++) { const c = queue[(q + k) % queue.length]; if (c.e - c.s >= Math.min(len, 1.2)) { shot = c; q = (q + k + 1) % queue.length; } }
     shot ||= queue[q++ % queue.length];
-    cuts.push({ at: marks[i], len, from: shot.s, src: Math.min(len, shot.e - shot.s) });
+    cuts.push({ at: marks[i], len, from: shot.s, src: shot.src });
   }
-  // The 16:9 shot sits as a band over a blurred, darkened copy of itself; nothing important is cropped away.
-  const parts = cuts.map((c, i) => `[0:v]trim=start=${n(c.from)}:duration=${n(c.len)},setpts=PTS-STARTPTS,fps=30,tpad=stop_mode=clone:stop_duration=${n(c.len)},trim=duration=${n(c.len)}[s${i}]`);
-  const graph = `${parts.join(';')};${cuts.map((_, i) => `[s${i}]`).join('')}concat=n=${cuts.length}:v=1:a=0,split[a][b];`
-    + `[a]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},boxblur=28:2,eq=brightness=-0.16:saturation=1.15[bg];`
-    + `[b]crop=ih*3/2:ih,scale=${W}:${Math.round(W * 2 / 3)}[fg];[bg][fg]overlay=0:${BAND_TOP},format=yuv420p[v]`;
-  ff('-i', a.clip, '-filter_complex', graph, '-map', '[v]', '-t', n(D), '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18', join(out, 'assets', 'footage.mp4'));
+  // Aim each 9:16 crop: slide a window across a small grey frame and keep the one with the
+  // most edge detail, gently preferring the centre. Sharp detail is where the subject is.
+  const aim = (src, t) => {
+    const fw = 160, fh = 90, cw = Math.round(fh * 9 / 16);
+    let px;
+    try { px = execFileSync('ffmpeg', ['-v', 'error', '-ss', n(t), '-i', src, '-frames:v', '1', '-vf', `scale=${fw}:${fh}`, '-f', 'rawvideo', '-pix_fmt', 'gray', '-'], { maxBuffer: 1 << 20 }); }
+    catch { return 0.5; }
+    if (px.length < fw * fh) return 0.5;
+    const col = new Float64Array(fw);
+    for (let y = 1; y < fh - 1; y++) for (let x = 1; x < fw - 1; x++) {
+      const i = y * fw + x;
+      col[x] += Math.abs(px[i + 1] - px[i - 1]) + Math.abs(px[i + fw] - px[i - fw]);
+    }
+    let best = 0, bestScore = -1, sum = 0;
+    for (let x = 0; x < cw; x++) sum += col[x];
+    for (let x = 0; x + cw <= fw; x++) {
+      if (x) sum += col[x + cw - 1] - col[x - 1];
+      const centre = (x + cw / 2) / fw, score = sum * (1 - 0.35 * Math.abs(centre - 0.5) * 2);
+      if (score > bestScore) { bestScore = score; best = x; }
+    }
+    return best / (fw - cw);
+  };
+  const segs = [];
+  cuts.forEach((c, i) => {
+    c.focus = Number(aim(c.src, c.from + Math.min(c.len, 2) / 2).toFixed(3));
+    const seg = join(out, `seg-${i}.mp4`);
+    ff('-ss', n(c.from), '-t', n(c.len), '-i', c.src, '-an', '-vf',
+      `crop=ih*9/16:ih:(iw-ih*9/16)*${c.focus}:0,scale=${W}:${H},fps=30,setsar=1,tpad=stop_mode=clone:stop_duration=${n(c.len)},trim=duration=${n(c.len)}`,
+      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18', '-pix_fmt', 'yuv420p', seg);
+    segs.push(seg);
+  });
+  writeFileSync(join(out, 'segs.txt'), segs.map((x) => `file '${x}'`).join('\n'));
+  ff('-f', 'concat', '-safe', '0', '-i', join(out, 'segs.txt'), '-c', 'copy', join(out, 'assets', 'footage.mp4'));
+  for (const x of [...segs, join(out, 'segs.txt')]) rmSync(x, { force: true });
 } else {
   ff(...(icon ? ['-stream_loop', '-1', '-t', n(D), '-i', a.clip] : ['-ss', n(t0 + clipOffset), '-t', n(D), '-i', a.clip]), '-an', '-vf', `crop=ih*9/16:ih:${cropX}:0,scale=${W}:${H},fps=30`,
     '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18', '-pix_fmt', 'yuv420p', join(out, 'assets', 'footage.mp4'));
@@ -169,7 +206,7 @@ if (sting) {
   flashes.forEach((f, i) => html.push(`<img id="flash-${i}" class="clip flash" src="${f.file}" alt="" data-start="${n(f.t)}" data-duration="0.12" data-track-index="${3 + i}" />`));
 }
 
-// Montage motion graphics: a gold flash on every cut, gold rules framing the band, embers
+// Montage motion graphics: a gold flash on every cut, a gold rule under the title, embers
 // rising like diya sparks, warm light drifting across, and a closing greeting card.
 // All seek-safe: fixed values from a seeded generator, finite tweens on the one timeline.
 // The closing card all but covers the band, so its greeting never sits over a deity in the last shot.
@@ -177,8 +214,8 @@ if (montage) {
   html.push('<div id="leak-a" class="leak"></div><div id="leak-b" class="leak"></div>');
   tl.push(`tl.fromTo("#leak-a", { x: -260, opacity: 0.28 }, { x: 220, opacity: 0.42, duration: ${n(D)}, ease: "none" }, 0);`);
   tl.push(`tl.fromTo("#leak-b", { x: 240, opacity: 0.22 }, { x: -200, opacity: 0.36, duration: ${n(D)}, ease: "none" }, 0);`);
-  html.push('<div id="rule-top" class="rule"></div><div id="rule-bottom" class="rule"></div>');
-  tl.push(`tl.fromTo(".rule", { scaleX: 0 }, { scaleX: 1, duration: 0.9, ease: "expo.out", stagger: 0.12 }, ${n(stingEnd)});`);
+  html.push('<div id="rule" class="rule"></div>');
+  tl.push(`tl.fromTo("#rule", { scaleX: 0 }, { scaleX: 1, duration: 0.9, ease: "expo.out" }, ${n(stingEnd + 0.2)});`);
   let seed = 7;
   const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   // Solid dots with a glow: gradients and blur on many layers make the capture drop frames.
@@ -253,18 +290,17 @@ html, body { margin: 0; width: ${W}px; height: ${H}px; overflow: hidden; backgro
 .tr { margin-top: ${calm ? 14 : 20}px; font: 500 ${calm ? 26 : 29}px/1.3 "Instrument Sans"; letter-spacing: 0.08em; color: rgba(251,247,239,0.72); opacity: 0; }
 .en { margin-top: ${calm ? 34 : 14}px; font: italic ${calm ? 84 : icon ? 42 : 48}px/${calm ? 1.08 : 1.15} "Instrument Serif"; color: #f1dfbd; ${calm ? 'max-width: 900px;' : 'max-width: 820px;'} }
 .ew { display: inline-block; opacity: 0; }
-${montage ? `#title { top: 300px; text-align: center; font: italic 52px/1.1 "Instrument Serif"; letter-spacing: 0.02em; color: #f3dca8; text-transform: none; }
-.cue { top: ${BAND_TOP + BAND_H + 70}px; bottom: auto; left: 60px; right: 60px; align-items: center; text-align: center; }
-.script { font-size: 92px; }
-.shade { background: linear-gradient(to bottom, rgba(8,6,4,0.35) 0%, rgba(8,6,4,0) 22%, rgba(8,6,4,0) 60%, rgba(8,6,4,0.6) 100%); }
+${montage ? `#title { top: 170px; text-align: center; font: italic 54px/1.1 "Instrument Serif"; letter-spacing: 0.02em; color: #f3dca8; text-transform: none; }
+.cue { bottom: 330px; left: 60px; right: 60px; align-items: center; text-align: center; }
+.script { font-size: 96px; text-shadow: 0 4px 30px rgba(0,0,0,0.55); }
+.shade { background: linear-gradient(to bottom, rgba(8,6,4,0.55) 0%, rgba(8,6,4,0) 18%, rgba(8,6,4,0) 52%, rgba(8,6,4,0.78) 100%); }
 .leak { position: absolute; width: 1300px; height: 1300px; border-radius: 50%; mix-blend-mode: screen; pointer-events: none; }
 #leak-a { top: -380px; left: -300px; background: radial-gradient(circle, rgba(255,176,72,0.55) 0%, rgba(255,140,40,0) 62%); }
 #leak-b { bottom: -460px; right: -360px; background: radial-gradient(circle, rgba(255,120,60,0.45) 0%, rgba(255,90,40,0) 60%); }
-.rule { position: absolute; left: 0; right: 0; height: 3px; transform-origin: 50% 50%; background: linear-gradient(90deg, rgba(240,196,110,0), #f0c46e 18%, #ffe3a3 50%, #f0c46e 82%, rgba(240,196,110,0)); box-shadow: 0 0 18px rgba(255,200,110,0.55); }
-#rule-top { top: ${BAND_TOP - 3}px; } #rule-bottom { top: ${BAND_TOP + BAND_H}px; }
+.rule { position: absolute; top: 250px; left: 390px; right: 390px; height: 3px; transform-origin: 50% 50%; background: linear-gradient(90deg, rgba(240,196,110,0), #f0c46e 18%, #ffe3a3 50%, #f0c46e 82%, rgba(240,196,110,0)); box-shadow: 0 0 18px rgba(255,200,110,0.55); }
 .ember { position: absolute; top: 0; border-radius: 50%; background: #ffd98a; box-shadow: 0 0 10px 3px rgba(255,170,70,0.6); opacity: 0; }
 #cutflash { position: absolute; inset: 0; background: radial-gradient(circle at 50% 45%, rgba(255,246,222,0.95), rgba(255,206,130,0.7) 60%, rgba(255,170,90,0.5)); mix-blend-mode: screen; opacity: 0; pointer-events: none; }
-#endcard { position: absolute; left: 0; right: 0; top: ${BAND_TOP}px; height: ${BAND_H}px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(12,8,4,0.9); opacity: 0; }
+#endcard { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(12,8,4,0.9); opacity: 0; }
 .end-script { font-family: "${font[0]}"; font-size: 150px; line-height: 1.15; color: #ffe8b8; text-shadow: 0 0 40px rgba(255,180,80,0.6); }
 .end-en { margin-top: 18px; font: italic 60px/1 "Instrument Serif"; color: #f3dca8; }
 ` : ''}#greet { position: absolute; left: 60px; right: 60px; top: 0; bottom: ${icon ? 330 : 120}px; display: flex; flex-direction: column; justify-content: ${icon ? 'flex-end' : 'center'}; align-items: center; text-align: center; }
