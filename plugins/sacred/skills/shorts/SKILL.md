@@ -13,9 +13,23 @@ A Short is one strong section of a song (20 to 40 seconds) over its finished foo
 |---|---|---|
 | `kinetic-hook` | The default. A chorus or hook line, cut on the beat | full-bleed footage as shot, the line rising word by word, reading and English beneath |
 | `festival-sting` | Festivals and occasions (Diwali, Navratri, Ganesh Chaturthi) | a 2 to 3 second greeting opener on the beat with flash cuts, then the kinetic hook |
+| `festival-montage` | Festivals, when the song has a finished video: the most energy | beat cuts between the video's best shots in a framed band, gold flashes, embers, kinetic lyrics, a greeting opener and closing card |
 | `meaning-card` | Lines whose meaning is the hook | calm, the line small, its English meaning large in an editorial serif |
 
 Read the template's TEMPLATE.md before using it. If the human names a template from the Sacred library page, use that name exactly.
+
+## Fast path: a festival montage (about 10 calls)
+
+1. Project: an existing Lahari project, or `pack start_project_from` (see step 0 below).
+2. `open { song }` for `masterAudio` and the song ID.
+3. `find { kinds: ["lyric_line"], filters: { songId }, limit: 50 }`: write the original-script lines with their times and meanings to `lines.json`.
+4. `find { query: "diyas, oil lamps, puja, the deity", kinds: ["video_window"], filters: { songId, finalVideo: true }, limit: 12 }`: its `tStart` values become `--moments`, and its `assetId` is the finished video.
+5. `fetch` that asset and the master audio.
+6. `node build.mjs --template festival-montage --clip finished.mp4 --moments 224,232,96 ...` (section 25 to 35 s from just before the first line).
+7. `npx hyperframes check` in the output folder (it must pass; the cloud renderer runs it too), then snapshot four or five times and look.
+8. `save` the `.tar.gz` and `render` it (about 4 minutes), then `fetch`, look, and `ask`.
+
+Skip analytics, library browsing and `describe` unless asked; this path needs none of them.
 
 ## From a song to a Short
 
@@ -33,7 +47,7 @@ Read the template's TEMPLATE.md before using it. If the human names a template f
      --start 27 --duration 30 --title "Shukravaara Bandaaga" --greeting "ಶುಭ ದೀಪಾವಳಿ" --greeting-en "Happy Diwali" --out short --tar
    ```
    Optional: `--focus-x 0.4` moves the 9:16 crop toward the subject (0 left, 1 right); `--clip-offset` when the footage is not song-aligned. Beats come from `beats.py` (librosa); without it the template uses a steady grid.
-6. **Check before rendering:** `npx hyperframes snapshot --at 1,4,12,25` in the output folder and look at the frames: text legible, not over a deity's face, the crop holds the subject.
+6. **Check before rendering:** `npx hyperframes check` must pass (the cloud renderer runs it and fails otherwise), then `npx hyperframes snapshot --at 1,4,12,25` in the output folder and look at the frames: text legible, not over a deity's face, the crop holds the subject.
 7. **Render:** `save` the `.tar.gz` with `kind: "composition_bundle"`, then `render { composition: { bundle: { uploadId } }, template: { name, version: 1 }, idempotencyKey }`. Several Shorts are one `batch` of render items; `wait` on the returned IDs. A 30 second Short takes three to four minutes to render, so start the render before talking it through.
 8. **Review:** `fetch` each output, look at a few frames, then `ask` once for all of them.
 

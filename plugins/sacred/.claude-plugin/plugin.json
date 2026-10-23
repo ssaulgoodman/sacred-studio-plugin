@@ -1,6 +1,6 @@
 {
   "name": "sacred",
-  "version": "0.1.31",
+  "version": "0.1.32",
   "description": "Operate Sacred video projects from Claude Code with production actions, craft skills, and project sync.",
   "author": {
     "name": "Mothership",

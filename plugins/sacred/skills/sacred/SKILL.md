@@ -12,7 +12,7 @@ Sacred holds projects, assets, lineage, reviews and spend. In Claude Code use `m
 | Verb | Use it to |
 |---|---|
 | `find` | Search lyrics, footage, assets, projects or models (`in: "models"`). |
-| `open` | Read a project, song, asset or job. A new project is `save { project: { title } }`. |
+| `open` | Read a project, song, asset or job. A new personal project is `save { project: { title } }`; a project in a label workspace such as Lahari is `pack start_project_from` (see below). |
 | `fetch` | Download files for inspection. |
 | `save` | Register a file or URL as an asset with lineage. |
 | `render` | Render a document, FFmpeg spec or HyperFrames composition. |
@@ -25,6 +25,11 @@ Sacred holds projects, assets, lineage, reviews and spend. In Claude Code use `m
 | `pack` | Run older shot actions: `pack { actionKey, input }`. |
 
 Use `describe` for unfamiliar inputs.
+
+- **Workspaces and projects:** `save { project }` creates in your personal workspace, where a label's catalogue songs do not open. For Lahari work, start a project inside the Lahari workspace with `pack { actionKey: "start_project_from", input: { projectId: <any Lahari project>, title, assetIds: [<library entries you will use>] } }`, or work in an existing Lahari project.
+- **Search results:** the `projectId` in a `find` result's handle is the project you searched through, used for access. It does not mean the media lives in that project; each hit's own `projectId` or `songId` says where it comes from.
+- **Library:** `find in:"library"` returns pages; follow `nextCursor` (or filter by tag, such as `taste:style`) before saying what the library holds.
+- **Shorts and festival pieces:** read the `shorts` skill; its fast path makes a festival montage in about ten calls.
 
 Render template bundles with `composition: { bundle: { uploadId }, assets?, output? }` and `template: { name, version }`; describe `render` for an example.
 
